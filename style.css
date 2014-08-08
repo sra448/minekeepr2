@@ -1,0 +1,43 @@
+html {
+  background: #222;
+  color: #999;
+  font-family: sans-serif;
+}
+
+.board > .row > .cell {
+  display: table-cell;
+  width: 25px;
+  height: 25px;
+  border: 1px solid #333;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.board > .row {
+  display: table-row;
+}
+
+.board {
+  display: table;
+  border-collapse: collapse;
+}
+
+.lost {
+  color: red;
+}
+
+.cell:hover {
+  background-color: #2a2a2a;
+}
+
+.flagged {
+  color: #bada55;
+}
+
+.revealed {
+  color: #5595DA;
+}
+
+.revealed.empty {
+  color: #265E9B;
+}
