@@ -2,15 +2,16 @@
 # -----------
 
 map2 = (xxs, fn) ->
-  (for xs, i in xxs
-    (for x, j in xs
-      fn x, j, i))
+  for xs, i in xxs
+    for x, j in xs
+      fn x, j, i
 
 getBoard = (width, height, bombs) ->
-  bombs = _.shuffle (x < bombs for x in [0..width*height-1])
-  addMetadata computeValues (for y in [0..height-1]
-    (for x in [0..width-1]
-      bombs.shift 1))
+  bombs = _.shuffle [x < bombs for x in [0 til width * height]]
+  addMetadata computeValues do
+    for y in [0 til height]
+      for x in [0 til width]
+        bombs.shift 1
 
 computeValues = (board) ->
   map2 board, (bomb, x, y) ->
@@ -30,7 +31,7 @@ getNeighborCoordinates = (x, y) ->
    [x, y+1] ,[x+1, y-1], [x+1, y], [x+1, y+1]]
 
 getNeighbors = (x, y, b) ->
-  _.compact (b[yy]?[xx] for [xx, yy] in getNeighborCoordinates x, y)
+  _.compact [b[yy]?[xx] for [xx, yy] in getNeighborCoordinates x, y]
 
 revealNeighbors = (x, y, board) ->
   coords = getNeighborCoordinates x, y
@@ -49,7 +50,7 @@ revealNeighbors = (x, y, board) ->
 # UI Stuff
 # --------
 
-field = React.createClass
+field = React.createClass do
 
   getInitialState: ->
     flagged: false
@@ -83,13 +84,13 @@ field = React.createClass
       else
         "-"
 
-board = React.createClass
+board = React.createClass do
 
   getInitialState: ->
     board: getBoard 30, 18, 55
 
   reset: (width, height, bombs) ->
-    @setState
+    @setState do
       board: getBoard width, height, bombs
 
   explode: ->
@@ -97,7 +98,7 @@ board = React.createClass
 
   showNeighbors: (cell) ->
     if cell.props.value == 0
-      @setState
+      @setState do
         board: revealNeighbors cell.props.position.x, cell.props.position.y, @state.board
 
   render: ->

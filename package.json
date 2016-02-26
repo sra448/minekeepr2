@@ -2,8 +2,7 @@
   "name": "minekeepr",
   "version": "2.0.0",
   "devDependencies": {
-    "grunt": "^0.4.5",
-    "grunt-contrib-coffee": "~0.10.0",
-    "grunt-contrib-watch": "~0.5.2"
+    "livescript-loader": "^0.1.5",
+    "webpack": "^1.12.14"
   }
 }
