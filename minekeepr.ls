@@ -1,7 +1,7 @@
 _ = require "lodash"
 Immutable = require "immutable"
 Kefir = require "kefir"
-{ apply, map, filter } = require "prelude-ls"
+{ apply, map, filter, fold } = require "prelude-ls"
 
 # game basics
 # -----------
@@ -15,7 +15,7 @@ Field = (id, has-bomb, neighbor-ids, surrounding-bombs-count) ->
   Immutable.Map().with-mutations (s) ->
     s.set \id, id
      .set \has-bomb, has-bomb
-     .set \surrounding-bombs-count, surrounding-bombs-count
+     .set \surrounding-bombs-count, if has-bomb then -1 else surrounding-bombs-count
      .set \neighbor-ids, neighbor-ids
      .set \is-revealed, false
      .set \is-marked, false
@@ -55,7 +55,7 @@ reset-game = (state) ->
      .set \time-elapsed, 0
      .set \bombs-guessed, 0
      .set \bombs-revealed, 0
-     .set \fields, Board (s.get \board-width), (s.get \board-height), 60
+     .set \fields, Board (s.get \board-width), (s.get \board-height), INIT_BOMBS
 
 initial-world-state = reset-game do
   Immutable.Map().with-mutations (s) ->
@@ -73,17 +73,24 @@ set-world-bombs = (state, new-bombs) ->
   reset-game <| state.set \bombs-count, new-bombs
 
 increment-time = (state, time) ->
-  state.set \time-elapsed, (state.get \time-elapsed) + 1
+  state.update \time-elapsed, (+ 1)
 
-reveal-field = (state, x, y) ->
-  state
+reveal-field = (state, id) -->
+  surrounding-bombs-count = state.getIn [\fields, id, \surrounding-bombs-count]
+  is-revealed = state.getIn [\fields, id, \is-revealed]
 
-toggle-field-bomb-guess = (state, x, y) ->
-  if state.get \game-running
-    state.set \fields, state.get \fields
+  if !is-revealed && surrounding-bombs-count == 0
+    fold reveal-field, (set-field-revealed state, id), state.getIn [\fields, id, \neighbor-ids]
+  else
+    set-field-revealed state, id
+
+set-field-revealed = (state, id) ->
+  state.setIn [\fields, id, \is-revealed], true
+
+toggle-field-bomb-guess = (state, id) ->
+  state.updateIn [\fields, id, \is-marked], (!)
 
 update-world-state = (state, [action, value]) ->
-  console.log action, value
   switch action
     case \increment-time then increment-time state
     case \reveal-field then reveal-field state, value
@@ -100,13 +107,13 @@ react-dom = require "react-dom"
 field-ui = ({field}) ->
   div {class-name:\cell, id:field.get \id},
     if (field.get \is-revealed)
-      (field.get \has-bomb) && "x" || (field.get \surrounding-bombs-count) == 0 && "-" || field.get \surrounding-bombs-count
+      (field.get \has-bomb) && \x || (field.get \surrounding-bombs-count) == 0 && " " || field.get \surrounding-bombs-count
     else if field.get \is-marked
-      "o"
+      \o
     else
-      "-"
+      \-
 
-board-ui = ({ world }) ->
+board-ui = ({world}) ->
   div {},
     div {}, "Time: " + world.get \time-elapsed
     div {class-name:\board},
@@ -115,6 +122,7 @@ board-ui = ({ world }) ->
           for x til world.get \board-width
             div {className:\cell},
               field-ui field: (world.get \fields).get y * (world.get \board-width) + x
+
 
 # game mechanics
 # --------------
@@ -131,13 +139,18 @@ increment-game-time = do
 player-reveal-cell = do
   Kefir
     .fromEvents HTML_CONTAINER, \click
+    .filter (e) ->
+      !!e.target.id
     .map (e) ->
       [\reveal-field, +e.target.id]
 
 player-toggle-cell = do
   Kefir
     .fromEvents HTML_CONTAINER, \contextmenu
+    .filter (e) ->
+      !!e.target.id
     .map (e) ->
+      e.preventDefault()
       [\toggle-field-bomb-guess, +e.target.id]
 
 game-stream = do
@@ -146,7 +159,7 @@ game-stream = do
     .scan update-world-state, initial-world-state
     .map render-game
 
-game-stream.log "game"
 
 # kickk off game
+game-stream.log "game"
 render-game initial-world-state
