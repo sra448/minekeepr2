@@ -1,121 +1,106 @@
 _ = require "lodash"
-react = require "react"
-react-dom = require "react-dom"
+Immutable = require "immutable"
+{ apply, map, filter } = require "prelude-ls"
 
 # game basics
 # -----------
 
-map2 = (xxs, fn) ->
-  for xs, i in xxs
-    for x, j in xs
-      fn x, j, i
+const INIT_WIDTH = 30
+const INIT_HEIGHT = 20
+const INIT_BOMBS = 55
 
-get-board = (width, height, bombs) ->
-  bombs = _.shuffle [x < bombs for x in [0 til width * height]]
-  add-metadata compute-values do
-    for y in [0 til height]
-      for x in [0 til width]
-        bombs.shift 1
+Field = (has-bomb, neighbor-ids, surrounding-bombs-count) ->
+  Immutable.Map().with-mutations (s) ->
+    s.set \has-bomb, has-bomb
+     .set \surrounding-bombs-count, surrounding-bombs-count
+     .set \neighbor-ids, neighbor-ids
+     .set \is-revealed, false
+     .set \is-marked, false
 
-compute-values = (board) ->
-  map2 board, (bomb, x, y) ->
-    bomb && -1 || (_.filter (get-neighbors x, y, board)).length
+Board = (width, height, bombs) ->
+  sequence-lenght = width * height
+  bombs-sequence = _.shuffle [x < bombs for x to sequence-lenght]
+  Immutable.Map do
+    for has-bomb, i in bombs-sequence
+      neighbor-ids = get-neighbor-ids i, width, height
+      surrounding-bombs-count = do
+        neighbor-ids
+          |> filter (x) -> bombs-sequence[x]
+          |> (.length)
+      [i, Field has-bomb, neighbor-ids, surrounding-bombs-count]
 
-add-metadata = (board) ->
-  map2 board, (c, x, y) ->
-    bomb: c == -1
-    value: c
-    revealed: false
-    position:
-      x: x
-      y: y
+get-neighbor-coordinates = ([x, y]) ->
+  [[x-1, y-1] [x-1, y] [x-1, y+1] [x, y-1] [x, y+1] [x+1, y-1] [x+1, y] [x+1, y+1]]
 
-get-neighbor-coordinates = (x, y) ->
-  [[x-1, y-1], [x-1, y], [x-1, y+1], [x, y-1],
-   [x, y+1] ,[x+1, y-1], [x+1, y], [x+1, y+1]]
+check-boundaries = (board-width, board-height) ->
+  ([x, y]) ->
+    0 <= x < board-height && 0 <= y < board-width
 
-get-neighbors = (x, y, b) ->
-  _.compact [b[yy]?[xx] for [xx, yy] in get-neighbor-coordinates x, y]
-
-reveal-neighbors = (x, y, board) ->
-  coords = get-neighbor-coordinates x, y
-  _.reduce coords, ((board, [xx, yy]) ->
-    c = board[yy]?[xx]
-    if c? && !c.revealed
-      c.revealed = true
-      if c.value == 0
-        reveal-neighbors xx, yy, board
-      else
-        board
-    else
-      board), board
+get-neighbor-ids = (i, board-width, board-height) ->
+  x = Math.floor <| i / board-width
+  y = i % board-width
+  get-neighbor-coordinates [x, y] 
+    |> filter check-boundaries board-width, board-height
+    |> map ([x, y]) -> x * board-width + y
 
 
-# UI Stuff
-# --------
+reset-game = (state) ->
+  state.with-mutations (s) ->
+    s.set \game-running, false
+     .set \game-won, false
+     .set \game-lost, false
+     .set \time-elapsed, 0
+     .set \bombs-guessed, 0
+     .set \bombs-revealed, 0
+     .set \fields, Board (s.get \board-width), (s.get \board-height), 60
 
-field = react.create-factory react.create-class do
+initial-world-state = reset-game do
+  Immutable.Map().with-mutations (s) ->
+    s.set \board-width, INIT_WIDTH
+     .set \board-height, INIT_HEIGHT
+     .set \bombs-count, INIT_BOMBS
 
-  get-initial-state: ->
-    flagged: false
-    revealed: false
+set-board-width = (state, new-width) ->
+  reset-game <| state.set \board-width, new-width
 
-  reveal: ->
-    if !@state.flagged
-      @props[@props.bomb && "onExplode" || "onReveal"] this
-      @set-state { revealed:true }
+set-board-height = (state, new-height) ->
+  reset-game <| state.set \board-height, new-height
 
-  flag: ->
-    if !@state.revealed
-      @set-state { flagged:!@state.flagged }
-    false
+set-world-bombs = (state, new-bombs) ->
+  reset-game <| state.set \bombs-count, new-bombs
 
-  render: ->
-    fieldType = if @state.flagged
-      "flagged"
-    else if @state.revealed || @props.revealed
-      if @props.value == 0
-        "revealed empty"
-      else
-        "revealed"
-    else ""
+reveal-field = (state, x, y) ->
+  state
 
-    react.DOM.div { class-name:"cell #{fieldType}", onClick:@reveal, onContextMenu:@flag },
-      if @state.revealed || @props.revealed
-        @props.bomb && "x" || @props.value == 0 && "-" || @props.value
-      else if @state.flagged
-        "o"
-      else
-        "-"
+toggle-field-bomb-guess = (state, x, y) ->
+  if state.get \game-running
+    state.set \fields, state.get \fields
 
-board = react.create-factory react.create-class do
 
-  get-initial-state: ->
-    board: get-board 30, 18, 55
+# the UI
+# ------
 
-  reset: (width, height, bombs) ->
-    @set-state do
-      board: get-board width, height, bombs
+react = require "react"
+react-dom = require "react-dom"
+{div} = react.DOM
 
-  explode: ->
-    @set-state { lost:true }
+field-ui = ({field}) ->
+  div {class-name:\cell},
+    # if (field.get \is-revealed)
+      (field.get \has-bomb) && "x" || (field.get \surrounding-bombs-count) == 0 && "-" || field.get \surrounding-bombs-count
+    # else if field.get \is-marked
+    #   "o"
+    # else
+    #   "-"
 
-  show-neighbors: (cell) ->
-    if cell.props.value == 0
-      @set-state do
-        board: reveal-neighbors cell.props.position.x, cell.props.position.y, @state.board
-
-  render: ->
-    react.DOM.div { class-name:"board #{@state.lost && "lost" || ""}" },
-      (for row in @state.board
-        react.DOM.div { class-name:"row" },
-          (for c in row
-            field _.extend c,
-              onExplode: @explode
-              onReveal: @show-neighbors))
+board-ui = ({ world }) ->
+  div {class-name:\board}, 
+    for y til world.get \board-height
+      div {class-name:\row"},
+        for x til world.get \board-width
+          div {className:\cell},
+            field-ui field: (world.get \fields).get y * (world.get \board-width) + x
 
 
 # hook ui stuff to the browser
-# ----------------------------
-
-react-dom.render (board {}), (document.get-element-by-id "container")
+react-dom.render (board-ui { world:initial-world-state }), (document.get-element-by-id "container")
