@@ -8,7 +8,7 @@ Kefir = require "kefir"
 
 const INIT_WIDTH = 30
 const INIT_HEIGHT = 20
-const INIT_BOMBS = 99
+const INIT_BOMBS = 110
 const HTML_CONTAINER = document.get-element-by-id "container"
 
 Field = (id, is-bomb, neighbor-ids, surrounding-bombs-count) ->
@@ -130,13 +130,15 @@ react-dom = require "react-dom"
 {div} = react.DOM
 
 field-ui = ({field}) ->
-  div {class-name:\cell, id:field.get \id},
-    if (field.get \is-revealed)
-      (field.get \is-bomb) && \x || (field.get \surrounding-bombs-count) == 0 && " " || field.get \surrounding-bombs-count
-    else if field.get \is-marked
-      \o
-    else
-      \-
+  value = field.get \surrounding-bombs-count
+
+  if field.get \is-revealed
+    div {class-name:"cell revealed value-#value", id:field.get \id},
+      (field.get \is-bomb) && \x || value == 0 && " " || value
+  else if field.get \is-marked
+    div {class-name:"cell flagged", id:field.get \id}, \\u2691
+  else
+    div {class-name:"cell", id:field.get \id}, \-
 
 board-ui = ({world}) ->
   div {},

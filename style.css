@@ -4,40 +4,62 @@ html {
   font-family: sans-serif;
 }
 
-.cell {
-  display: table-cell;
-  width: 25px;
-  height: 25px;
-  border: 1px solid #333;
-  text-align: center;
-  vertical-align: middle;
+.board {
+  display: table;
+  border-collapse: collapse;
+  background: #222;
+
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  cursor: default;
 }
 
 .row {
   display: table-row;
 }
 
-.board {
-  display: table;
-  border-collapse: collapse;
+.cell {
+  display: table-cell;
+  width: 25px;
+  height: 25px;
+  border: 1px solid black;
+  text-align: center;
+  vertical-align: middle;
 }
 
-.lost {
-  color: red;
-}
-
-.cell:hover {
+div[class=cell]:hover {
   background-color: #2a2a2a;
+}
+
+.revealed {
+  /*font-weight: bold;*/
+  background-color: #1C1C1C;
+  border: none;
+}
+
+.value-1 {
+  color: #79A4BE;
+}
+
+.value-2 {
+  color: #948ADD;
+}
+
+.value-3 {
+  color: #CC6DEA;
+}
+
+.value-4 {
+  color: #EE41AF;
+}
+
+.value-5, .value-6, .value-7, .value-8 {
+  color: #EE4141;
 }
 
 .flagged {
   color: #bada55;
-}
-
-.revealed {
-  color: #5595DA;
-}
-
-.revealed.empty {
-  color: #265E9B;
 }
