@@ -2,12 +2,19 @@ html {
   background: #222;
   color: #999;
   font-family: sans-serif;
+  text-align: center;
+}
+
+#reset-game {
+  font-size: 38px;
 }
 
 .board {
   display: table;
   border-collapse: collapse;
   background: #222;
+  border: 1px solid black;
+  margin: auto;
 
   -webkit-touch-callout: none;
   -webkit-user-select: none;

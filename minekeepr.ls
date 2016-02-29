@@ -8,7 +8,7 @@ Kefir = require "kefir"
 
 const INIT_WIDTH = 30
 const INIT_HEIGHT = 20
-const INIT_BOMBS = 110
+const INIT_BOMBS = 100
 const HTML_CONTAINER = document.get-element-by-id "container"
 
 Field = (id, is-bomb, neighbor-ids, surrounding-bombs-count) ->
@@ -21,7 +21,7 @@ Field = (id, is-bomb, neighbor-ids, surrounding-bombs-count) ->
      .set \is-marked, false
 
 Board = (width, height, bombs) ->
-  bombs-sequence = shuffle [x < bombs for x to width * height]
+  bombs-sequence = shuffle [x < bombs for x til width * height]
   Immutable.Map do
     for is-bomb, i in bombs-sequence
       neighbor-ids = get-neighbor-ids i, width, height
@@ -73,7 +73,12 @@ set-world-bombs = (state, new-bombs) ->
   reset-game <| state.set \bombs-count, new-bombs
 
 increment-time = (state, time) ->
-  state.update \time-elapsed, (+ 1)
+  if (state.get \game-lost) || (state.get \game-won)
+    state
+  else
+    state.update \time-elapsed, (+ 1)
+
+# reveal-bomb = (state, id) ->
 
 reveal-field = (state, id) ->
   if !state.get \game-running
@@ -82,6 +87,9 @@ reveal-field = (state, id) ->
         it.set \game-running, true
           .set \fields,
             get-board-for (it.get \board-width), (it.get \board-height), (it.get \bombs-count), id
+
+  else if state.getIn [\fields, id, \is-marked]
+    state
 
   else
     surrounding-bombs-count = state.getIn [\fields, id, \surrounding-bombs-count]
@@ -99,42 +107,53 @@ reveal-field = (state, id) ->
             |> fold set-field-revealed, set-field-revealed state, id
 
 set-field-revealed = (state, id) ->
-  if !state.getIn [\fields, id, \is-revealed]
+  if state.getIn [\fields, id, \is-bomb]
+    state.with-mutations ->
+      it.set \game-lost, true
+      it.setIn [\fields, id, \is-revealed], true
+  else if (!state.getIn [\fields, id, \is-revealed]) && !state.getIn [\fields, id, \is-marked]
     state.setIn [\fields, id, \is-revealed], true
   else
     state
 
 toggle-field-bomb-guess = (state, id) ->
   if state.get \game-running
-    state.updateIn [\fields, id, \is-marked], (!)
+    is-currently-marked = state.getIn [\fields, id, \is-marked]
+    state.with-mutations ->
+      it.update \bombs-guessed, ->
+        is-currently-marked && it - 1 || it + 1
+      it.setIn [\fields, id, \is-marked], !is-currently-marked
   else
     state
 
+world-explode = (state, amount) ->
+  if amount == 9
+    state.set \game-running, false
+  else
+    state.set \explotion, amount
+
 update-world-state = (state, [action, value]) ->
+  console.log action, value
   switch action
+    case \reset-game then increment-time state
     case \increment-time then increment-time state
     case \reveal-field then reveal-field state, value
     case \toggle-field-bomb-guess then toggle-field-bomb-guess state, value
-
-initial-world-state = reset-game do
-  Immutable.Map().with-mutations (s) ->
-    s.set \board-width, INIT_WIDTH
-     .set \board-height, INIT_HEIGHT
-     .set \bombs-count, INIT_BOMBS
-
+    case \world-explode then world-explode state, value
+    default state
 
 # UI Elements
 
 react = require "react"
 react-dom = require "react-dom"
-{div} = react.DOM
+{div, h1, a} = react.DOM
 
 field-ui = ({field}) ->
   value = field.get \surrounding-bombs-count
 
   if field.get \is-revealed
     div {class-name:"cell revealed value-#value", id:field.get \id},
-      (field.get \is-bomb) && \x || value == 0 && " " || value
+      (field.get \is-bomb) && "\uD83D\uDCA3" || value == 0 && " " || value
   else if field.get \is-marked
     div {class-name:"cell flagged", id:field.get \id}, \\u2691
   else
@@ -142,8 +161,20 @@ field-ui = ({field}) ->
 
 board-ui = ({world}) ->
   div {},
-    div {}, "Time: " + world.get \time-elapsed
-    div {class-name:\board},
+    h1 {}, "minesweeper"
+
+    div {},
+      div {}, "Bombs: " + ((world.get \bombs-count) - (world.get \bombs-guessed))
+      a {id:\reset-game},
+        if world.get \game-lost
+          \\u2639
+        else if world.get \game-won
+          \\u263A
+        else
+          \\u263A
+      div {}, "Time: " + world.get \time-elapsed
+
+    div {class-name:\board, id:\board},
       for y til world.get \board-height
         div {class-name:\row, key:y},
           for x til world.get \board-width
@@ -165,28 +196,48 @@ increment-game-time = do
 player-reveal-cell = do
   Kefir
     .fromEvents HTML_CONTAINER, \click
-    .filter (e) ->
-      e.target.id
-    .map (e) ->
-      [\reveal-field, +e.target.id]
+    .filter ->
+      it.target.id
+    .map ->
+      [\reveal-field, +it.target.id]
 
 player-toggle-cell = do
   Kefir
     .fromEvents HTML_CONTAINER, \contextmenu
-    .filter (e) ->
-      e.target.id
-    .map (e) ->
-      e.preventDefault()
-      [\toggle-field-bomb-guess, +e.target.id]
+    .filter ->
+      it.target.id
+    .map ->
+      it.preventDefault()
+      [\toggle-field-bomb-guess, +it.target.id]
 
-game-stream = do
-  Kefir
-    .merge [increment-game-time, player-reveal-cell, player-toggle-cell]
-    .scan update-world-state, initial-world-state
-    # .map render-game
+# player-reset-game = do
+#   Kefir
+#     .fromEvents (document.get-element-by-id \reset-game), \click
+#     .map ->
+#       [\reset-game]
+
+initial-world-state = reset-game do
+  Immutable.Map().with-mutations ->
+    it.set \board-width, INIT_WIDTH
+      .set \board-height, INIT_HEIGHT
+      .set \bombs-count, INIT_BOMBS
 
 # kick off game
-player-reveal-cell.onValue ->
-  game-stream.on-value render-game
+player-reveal-cell
+  .take 1
+  .onValue (action) ->
+    Kefir
+      .merge [increment-game-time, player-reveal-cell, player-toggle-cell]
+      .scan update-world-state, update-world-state initial-world-state, action
+      .flatMap ->
+        if !it.get \game-lost
+          Kefir.constant it
+        else
+          Kefir
+            .sequentially 100, [[\world-explode, i] for i til 10]
+            .scan update-world-state, it
+      .takeWhile ->
+        it.get \game-running
+      .on-value render-game
 
 render-game initial-world-state
