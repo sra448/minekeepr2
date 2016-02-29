@@ -4,9 +4,9 @@ Kefir = require "kefir"
 {shuffle} = require "lodash"
 {apply, map, filter, fold, flip} = require "prelude-ls"
 
-const INIT_WIDTH = 30
-const INIT_HEIGHT = 20
-const INIT_BOMBS = 100
+const INIT_WIDTH = 10
+const INIT_HEIGHT = 10
+const INIT_BOMBS = 9
 const HTML_CONTAINER = document.get-element-by-id "container"
 
 # board data structures
@@ -80,25 +80,27 @@ reset-game = (state) ->
       .set \game-lost, false
       .set \time-elapsed, 0
       .set \fields-flagged, 0
+      .set \fields-revealed, 0
       .set \fields,
         Board (it.get \board-width), (it.get \board-height), 0
 
-loose-game = (state, id) ->
-  state.with-mutations ->
-    it.set \game-lost, true
-    it.setIn [\fields, id, \is-revealed], true
+win-game = (state) ->
+  state.set \game-won, true
+
+lose-game = (state) ->
+  state.set \game-lost, true
 
 increment-time = (state, time) ->
   if (state.get \game-lost) || (state.get \game-won)
-    state
+    state.set \game-running, false
   else
     state.update \time-elapsed, (+ 1)
 
 reveal-field = (state, id) ->
-  if state.getIn [\fields, id, \is-flagged]
+  if (state.get \game-lost) || (state.get \game-won) || state.getIn [\fields, id, \is-flagged]
     state
   else if state.getIn [\fields, id, \is-bomb]
-    loose-game state, id
+    lose-game <| set-field-revealed state, id
   else
     surrounding-bombs-count = state.getIn [\fields, id, \surrounding-bombs-count]
     is-revealed = state.getIn [\fields, id, \is-revealed]
@@ -118,7 +120,12 @@ set-field-revealed = (state, id) ->
   if (state.getIn [\fields, id, \is-revealed]) || state.getIn [\fields, id, \is-flagged]
     state
   else
-    state.setIn [\fields, id, \is-revealed], true
+    state.with-mutations ->
+      if (it.get \fields).size - ((it.get \fields-revealed) + 1) == it.get \bombs-count
+        it.set \game-won, true
+
+      it.setIn [\fields, id, \is-revealed], true
+        .update \fields-revealed, (+ 1)
 
 toggle-field-flag = (state, id) ->
   if !state.get \game-running
@@ -130,14 +137,12 @@ toggle-field-flag = (state, id) ->
         .update \fields-flagged, is-currently-flagged && (- 1) || (+ 1)
 
 world-explode = (state, amount) ->
-  if amount == 9
-    state.set \game-running, false
-  else
-    state.set \explotion, amount
+  state.set \explotion, amount
 
 # dispatch actions
 
 update-world-state = (state, [action, value]) ->
+  console.log action, value
   switch action
     case \reset-game then increment-time state
     case \increment-time then increment-time state
@@ -180,7 +185,7 @@ game-ui = ({world}) ->
         if world.get \game-lost
           \\u2639
         else if world.get \game-won
-          \\u263A
+          \won
         else
           \\u263A
       div {}, "Time: " + world.get \time-elapsed
@@ -190,11 +195,7 @@ game-ui = ({world}) ->
 
 # player interactions
 
-increment-game-time = do
-  Kefir
-    .interval 1000, 1
-    .map ->
-      [\increment-time, 1]
+increment-game-time = Kefir.interval 1000, [\increment-time]
 
 player-reveal-cell = do
   Kefir
@@ -230,6 +231,8 @@ player-reveal-cell
     Kefir
       .merge [increment-game-time, player-reveal-cell, player-toggle-cell]
       .scan update-world-state, start-game initial-world-state, initial-cell-id
+      .takeWhile ->
+        it.get \game-running
       .flatMap ->
         if !it.get \game-lost
           Kefir.constant it
@@ -237,8 +240,6 @@ player-reveal-cell
           Kefir
             .sequentially 100, [[\world-explode, i] for i til 10]
             .scan update-world-state, it
-      .takeWhile ->
-        it.get \game-running
       .on-value render-game
 
 render-game initial-world-state
