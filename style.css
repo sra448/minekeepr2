@@ -67,6 +67,11 @@ div[class=cell]:hover {
   color: #EE4141;
 }
 
+.bomb {
+  color: #D46C43;
+  font-size: 0.8em;
+}
+
 .flagged {
   color: #bada55;
 }

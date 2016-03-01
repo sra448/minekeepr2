@@ -4,9 +4,9 @@ Kefir = require "kefir"
 {shuffle} = require "lodash"
 {apply, map, filter, fold, flip} = require "prelude-ls"
 
-const INIT_WIDTH = 10
-const INIT_HEIGHT = 10
-const INIT_BOMBS = 9
+const INIT_WIDTH = 16
+const INIT_HEIGHT = 16
+const INIT_BOMBS = 40
 const HTML_CONTAINER = document.get-element-by-id "container"
 
 # board data structures
@@ -22,14 +22,14 @@ Field = (id, is-bomb, neighbor-ids, surrounding-bombs-count) ->
 
 Board = (width, height, bombs) ->
   bombs-sequence = shuffle [x < bombs for x til width * height]
-  Immutable.Map do
+  Immutable.List do
     for is-bomb, i in bombs-sequence
       neighbor-ids = get-neighbor-ids i, width, height
       surrounding-bombs-count = do
         neighbor-ids
           |> filter (x) -> bombs-sequence[x]
           |> (.length)
-      [i, (Field i, is-bomb, neighbor-ids, surrounding-bombs-count)]
+      Field i, is-bomb, neighbor-ids, surrounding-bombs-count
 
 # board data helpers
 
@@ -56,14 +56,18 @@ get-neighbor-ids = (i, board-width, board-height) ->
 
 # game actions
 
-set-board-width = (state, new-width) ->
-  reset-game <| state.set \board-width, new-width
-
-set-board-height = (state, new-height) ->
-  reset-game <| state.set \board-height, new-height
-
-set-world-bombs = (state, new-bombs) ->
-  reset-game <| state.set \bombs-count, new-bombs
+reset-game = (board-width, board-height, bombs-count) ->
+  Immutable.Map().with-mutations ->
+    it.set \game-running, false
+      .set \game-won, false
+      .set \game-lost, false
+      .set \time-elapsed, 0
+      .set \fields-flagged, 0
+      .set \fields-revealed, 0
+      .set \board-width, board-width || it.get \board-width
+      .set \board-height, board-height || it.get \board-height
+      .set \bombs-count, bombs-count || it.get \bombs-count
+      .set \fields, Board (it.get \board-width), (it.get \board-height), 0
 
 start-game = (state, initial-cell-id) ->
   (flip reveal-field) initial-cell-id,
@@ -72,17 +76,6 @@ start-game = (state, initial-cell-id) ->
         .set \time-elapsed, 1
         .set \fields,
           get-board-for (it.get \board-width), (it.get \board-height), (it.get \bombs-count), initial-cell-id
-
-reset-game = (state) ->
-  state.with-mutations ->
-    it.set \game-running, false
-      .set \game-won, false
-      .set \game-lost, false
-      .set \time-elapsed, 0
-      .set \fields-flagged, 0
-      .set \fields-revealed, 0
-      .set \fields,
-        Board (it.get \board-width), (it.get \board-height), 0
 
 win-game = (state) ->
   state.set \game-won, true
@@ -100,7 +93,7 @@ reveal-field = (state, id) ->
   if (state.get \game-lost) || (state.get \game-won) || state.getIn [\fields, id, \is-flagged]
     state
   else if state.getIn [\fields, id, \is-bomb]
-    lose-game <| set-field-revealed state, id
+    lose-game state
   else
     surrounding-bombs-count = state.getIn [\fields, id, \surrounding-bombs-count]
     is-revealed = state.getIn [\fields, id, \is-revealed]
@@ -110,22 +103,22 @@ reveal-field = (state, id) ->
     else
       state.getIn [\fields, id, \neighbor-ids]
         |> map -> state.getIn [\fields, it]
-        |> filter -> !(it.get \is-revealed) && (it.get \surrounding-bombs-count) == 0
+        |> filter -> (!it.get \is-revealed) && (it.get \surrounding-bombs-count) == 0
         |> map -> it.get \id
         |> fold reveal-field,
           state.getIn [\fields, id, \neighbor-ids]
+            |> map -> state.getIn [\fields, it]
+            |> filter -> (!it.get \is-revealed) && (!it.get \is-flagged)
+            |> map -> it.get \id
             |> fold set-field-revealed, set-field-revealed state, id
 
 set-field-revealed = (state, id) ->
-  if (state.getIn [\fields, id, \is-revealed]) || state.getIn [\fields, id, \is-flagged]
-    state
-  else
-    state.with-mutations ->
-      if (it.get \fields).size - ((it.get \fields-revealed) + 1) == it.get \bombs-count
-        it.set \game-won, true
+  state.with-mutations ->
+    if (it.get \fields).size - ((it.get \fields-revealed) + 1) == it.get \bombs-count
+      it.set \game-won, true
 
-      it.setIn [\fields, id, \is-revealed], true
-        .update \fields-revealed, (+ 1)
+    it.setIn [\fields, id, \is-revealed], true
+      .update \fields-revealed, (+ 1)
 
 toggle-field-flag = (state, id) ->
   if !state.get \game-running
@@ -157,23 +150,27 @@ react = require "react"
 react-dom = require "react-dom"
 {div, h1, a} = react.DOM
 
-field-ui = ({field}) ->
+field-ui = ({field, game-lost}) ->
   value = field.get \surrounding-bombs-count
 
-  if field.get \is-revealed
-    div {class-name:"cell revealed value-#value", id:field.get \id},
-      (field.get \is-bomb) && "\uD83D\uDCA3" || value == 0 && " " || value
+  if (!field.get \is-bomb) && (field.get \is-revealed)
+    div {class-name:"cell revealed value-#value", id:field.get \id}, value > 0 && value || " "
   else if field.get \is-flagged
     div {class-name:"cell flagged", id:field.get \id}, \\u2691
+  else if game-lost && field.get \is-bomb
+    div {class-name:"cell bomb"}, "\uD83D\uDCA3"
   else
     div {class-name:"cell", id:field.get \id}, \-
 
 board-ui = ({world}) ->
   div {class-name:\board, id:\board},
     for y til world.get \board-height
-      div {class-name:\row, key:y},
+      div {class-name:\row, key:"row-#y"},
         for x til world.get \board-width
-          field-ui field: (world.get \fields).get y * (world.get \board-width) + x
+          field-ui do
+            key: "field-#x-#y"
+            game-lost: world.get \game-lost
+            field: (world.get \fields).get y * (world.get \board-width) + x
 
 game-ui = ({world}) ->
   div {},
@@ -200,16 +197,14 @@ increment-game-time = Kefir.interval 1000, [\increment-time]
 player-reveal-cell = do
   Kefir
     .fromEvents HTML_CONTAINER, \click
-    .filter ->
-      it.target.id
+    .filter (.target.id)
     .map ->
       [\reveal-field, +it.target.id]
 
 player-toggle-cell = do
   Kefir
     .fromEvents HTML_CONTAINER, \contextmenu
-    .filter ->
-      it.target.id
+    .filter (.target.id)
     .map ->
       it.preventDefault()
       [\toggle-field-flag, +it.target.id]
@@ -219,11 +214,7 @@ player-toggle-cell = do
 render-game = (world) ->
   react-dom.render (game-ui {world}), HTML_CONTAINER
 
-initial-world-state = reset-game do
-  Immutable.Map().with-mutations ->
-    it.set \board-width, INIT_WIDTH
-      .set \board-height, INIT_HEIGHT
-      .set \bombs-count, INIT_BOMBS
+initial-world-state = reset-game INIT_WIDTH, INIT_HEIGHT, INIT_BOMBS
 
 player-reveal-cell
   .take 1
@@ -231,15 +222,7 @@ player-reveal-cell
     Kefir
       .merge [increment-game-time, player-reveal-cell, player-toggle-cell]
       .scan update-world-state, start-game initial-world-state, initial-cell-id
-      .takeWhile ->
-        it.get \game-running
-      .flatMap ->
-        if !it.get \game-lost
-          Kefir.constant it
-        else
-          Kefir
-            .sequentially 100, [[\world-explode, i] for i til 10]
-            .scan update-world-state, it
+      .takeWhile (.get \game-running)
       .on-value render-game
 
 render-game initial-world-state
