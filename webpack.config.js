@@ -1,8 +1,11 @@
 module.exports = {
-  entry: "./minekeepr.ls",
+  entry: {
+    minesweeper: "./minesweeper.ls",
+    "spec/minesweeper_spec": "./spec/minesweeper_spec.ls"
+  },
   output: {
-    path: __dirname + "/dist",
-    filename: "minekeepr.js"
+    path: __dirname,
+    filename: "[name].js"
   },
   module: {
     loaders: [
