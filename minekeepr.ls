@@ -69,7 +69,7 @@ reset-game = (board-width, board-height, bombs-count) ->
       .set \bombs-count, bombs-count || it.get \bombs-count
       .set \fields, Board (it.get \board-width), (it.get \board-height), 0
 
-start-game = (state, initial-cell-id) ->
+start-game-with = (state, initial-cell-id) ->
   (flip reveal-field) initial-cell-id,
     state.with-mutations ->
       it.set \game-running, true
@@ -77,8 +77,11 @@ start-game = (state, initial-cell-id) ->
         .set \fields,
           get-board-for (it.get \board-width), (it.get \board-height), (it.get \bombs-count), initial-cell-id
 
-win-game = (state) ->
-  state.set \game-won, true
+check-game-won = (state) ->
+  if (state.get \fields).size - (state.get \fields-revealed) > state.get \bombs-count
+    state
+  else
+    state.set \game-won, true
 
 lose-game = (state) ->
   state.set \game-lost, true
@@ -90,35 +93,32 @@ increment-time = (state, time) ->
     state.update \time-elapsed, (+ 1)
 
 reveal-field = (state, id) ->
-  if (state.get \game-lost) || (state.get \game-won) || state.getIn [\fields, id, \is-flagged]
+  if (state.get \game-lost) || (state.get \game-won) || state.getIn [\fields, id, \is-flagged] || state.getIn [\fields, id, \is-revealed]
     state
   else if state.getIn [\fields, id, \is-bomb]
     lose-game state
+  else if (state.getIn [\fields, id, \surrounding-bombs-count]) > 0
+    set-field-revealed state, id
   else
-    surrounding-bombs-count = state.getIn [\fields, id, \surrounding-bombs-count]
-    is-revealed = state.getIn [\fields, id, \is-revealed]
+    neighbor-fields = state.getIn [\fields, id, \neighbor-ids]
+      |> map -> state.getIn [\fields, it]
 
-    if surrounding-bombs-count != 0
-      set-field-revealed state, id
-    else
-      state.getIn [\fields, id, \neighbor-ids]
-        |> map -> state.getIn [\fields, it]
-        |> filter -> (!it.get \is-revealed) && (it.get \surrounding-bombs-count) == 0
-        |> map -> it.get \id
-        |> fold reveal-field,
-          state.getIn [\fields, id, \neighbor-ids]
-            |> map -> state.getIn [\fields, it]
-            |> filter -> (!it.get \is-revealed) && (!it.get \is-flagged)
-            |> map -> it.get \id
-            |> fold set-field-revealed, set-field-revealed state, id
+    neighbor-fields
+      |> filter -> (!it.get \is-revealed) && (it.get \surrounding-bombs-count) == 0
+      |> map -> it.get \id
+      |> fold reveal-field,
+        neighbor-fields
+          |> filter -> (!it.get \is-revealed) && (!it.get \is-flagged)
+          |> map -> it.get \id
+          |> fold set-field-revealed, set-field-revealed state, id
 
 set-field-revealed = (state, id) ->
-  state.with-mutations ->
-    if (it.get \fields).size - ((it.get \fields-revealed) + 1) == it.get \bombs-count
-      it.set \game-won, true
-
-    it.setIn [\fields, id, \is-revealed], true
-      .update \fields-revealed, (+ 1)
+  if state.getIn [\fields, id, \is-revealed]
+    state
+  else
+    state.with-mutations ->
+      it.setIn [\fields, id, \is-revealed], true
+        .update \fields-revealed, (+ 1)
 
 toggle-field-flag = (state, id) ->
   if !state.get \game-running
@@ -129,19 +129,15 @@ toggle-field-flag = (state, id) ->
       it.setIn [\fields, id, \is-flagged], !is-currently-flagged
         .update \fields-flagged, is-currently-flagged && (- 1) || (+ 1)
 
-world-explode = (state, amount) ->
-  state.set \explotion, amount
-
 # dispatch actions
 
-update-world-state = (state, [action, value]) ->
-  console.log action, value
+update-game-state = (state, [action, value]) ->
   switch action
     case \reset-game then increment-time state
     case \increment-time then increment-time state
-    case \reveal-field then reveal-field state, value
+    case \start-game-with then check-game-won <| start-game-with state, value
+    case \reveal-field then check-game-won <| reveal-field state, value
     case \toggle-field-flag then toggle-field-flag state, value
-    case \world-explode then world-explode state, value
     default state
 
 # UI Elements
@@ -221,7 +217,8 @@ player-reveal-cell
   .onValue ([_, initial-cell-id]) ->
     Kefir
       .merge [increment-game-time, player-reveal-cell, player-toggle-cell]
-      .scan update-world-state, start-game initial-world-state, initial-cell-id
+      .scan update-game-state,
+        update-game-state initial-world-state, [\start-game-with, initial-cell-id]
       .takeWhile (.get \game-running)
       .on-value render-game
 
