@@ -16,6 +16,6 @@
   },
   "scripts": {
     "start": "webpack",
-    "test": "webpack && jasmine-node spec"
+    "test": "webpack && jasmine-node spec --verbose"
   }
 }

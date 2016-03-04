@@ -1,26 +1,20 @@
-Immutable = require "immutable"
-Kefir = require "kefir"
+Immutable = require \immutable
 
-{shuffle} = require "lodash"
-{apply, map, filter, fold, flip} = require "prelude-ls"
-
-const INIT_WIDTH = 16
-const INIT_HEIGHT = 16
-const INIT_BOMBS = 40
-const HTML_CONTAINER = document.get-element-by-id "container"
+{shuffle} = require \lodash
+{map, filter, fold, flip} = require \prelude-ls
 
 # board data structures
 
 Field = (id, is-bomb, neighbor-ids, surrounding-bombs-count) ->
-  Immutable.Map().with-mutations (s) ->
-    s.set \id, id
-     .set \is-bomb, is-bomb
-     .set \surrounding-bombs-count, is-bomb && -1 || surrounding-bombs-count
-     .set \neighbor-ids, neighbor-ids
-     .set \is-revealed, false
-     .set \is-flagged, false
+  Immutable.Map().with-mutations ->
+    it.set \id, id
+      .set \is-bomb, is-bomb
+      .set \surrounding-bombs-count, is-bomb && -1 || surrounding-bombs-count
+      .set \neighbor-ids, neighbor-ids
+      .set \is-revealed, false
+      .set \is-flagged, false
 
-Board = (width, height, bombs) ->
+Fields = (width, height, bombs) ->
   bombs-sequence = shuffle [x < bombs for x til width * height]
   Immutable.List do
     for is-bomb, i in bombs-sequence
@@ -34,7 +28,7 @@ Board = (width, height, bombs) ->
 # board data helpers
 
 get-board-for = (width, height, bombs, id) ->
-  board = Board width, height, bombs
+  board = Fields width, height, bombs
   if (board.getIn [id, \surrounding-bombs-count]) != 0
     get-board-for ...
   else
@@ -67,7 +61,7 @@ reset-game = (board-width, board-height, bombs-count) ->
       .set \board-width, board-width || it.get \board-width
       .set \board-height, board-height || it.get \board-height
       .set \bombs-count, bombs-count || it.get \bombs-count
-      .set \fields, Board (it.get \board-width), (it.get \board-height), 0
+      .set \fields, Fields (it.get \board-width), (it.get \board-height), 0
 
 start-game-with = (state, initial-cell-id) ->
   (flip reveal-field) initial-cell-id,
@@ -133,93 +127,14 @@ toggle-field-flag = (state, id) ->
 
 update-game-state = (state, [action, value]) ->
   switch action
-    case \reset-game then increment-time state
+    case \reset-game then reset-game state, value
     case \increment-time then increment-time state
     case \start-game-with then check-game-won <| start-game-with state, value
     case \reveal-field then check-game-won <| reveal-field state, value
     case \toggle-field-flag then toggle-field-flag state, value
     default state
 
-# UI Elements
-
-react = require "react"
-react-dom = require "react-dom"
-{div, h1, a} = react.DOM
-
-field-ui = ({field, game-lost}) ->
-  value = field.get \surrounding-bombs-count
-
-  if (!field.get \is-bomb) && (field.get \is-revealed)
-    div {class-name:"cell revealed value-#value", id:field.get \id}, value > 0 && value || " "
-  else if field.get \is-flagged
-    div {class-name:"cell flagged", id:field.get \id}, \\u2691
-  else if game-lost && field.get \is-bomb
-    div {class-name:"cell bomb"}, "\uD83D\uDCA3"
-  else
-    div {class-name:"cell", id:field.get \id}, \-
-
-board-ui = ({world}) ->
-  div {class-name:\board, id:\board},
-    for y til world.get \board-height
-      div {class-name:\row, key:"row-#y"},
-        for x til world.get \board-width
-          field-ui do
-            key: "field-#x-#y"
-            game-lost: world.get \game-lost
-            field: (world.get \fields).get y * (world.get \board-width) + x
-
-game-ui = ({world}) ->
-  div {},
-    h1 {}, "minesweeper"
-
-    div {},
-      div {}, "Bombs: " + ((world.get \bombs-count) - (world.get \fields-flagged))
-      a {id:\reset-game},
-        if world.get \game-lost
-          \\u2639
-        else if world.get \game-won
-          \won
-        else
-          \\u263A
-      div {}, "Time: " + world.get \time-elapsed
-
-    board-ui {world}
-
-
-# player interactions
-
-increment-game-time = Kefir.interval 1000, [\increment-time]
-
-player-reveal-cell = do
-  Kefir
-    .fromEvents HTML_CONTAINER, \click
-    .filter (.target.id)
-    .map ->
-      [\reveal-field, +it.target.id]
-
-player-toggle-cell = do
-  Kefir
-    .fromEvents HTML_CONTAINER, \contextmenu
-    .filter (.target.id)
-    .map ->
-      it.preventDefault()
-      [\toggle-field-flag, +it.target.id]
-
-# kick off game
-
-render-game = (world) ->
-  react-dom.render (game-ui {world}), HTML_CONTAINER
-
-initial-world-state = reset-game INIT_WIDTH, INIT_HEIGHT, INIT_BOMBS
-
-player-reveal-cell
-  .take 1
-  .onValue ([_, initial-cell-id]) ->
-    Kefir
-      .merge [increment-game-time, player-reveal-cell, player-toggle-cell]
-      .scan update-game-state,
-        update-game-state initial-world-state, [\start-game-with, initial-cell-id]
-      .takeWhile (.get \game-running)
-      .on-value render-game
-
-render-game initial-world-state
+module.exports = {
+  reset-game
+  update-game-state
+}

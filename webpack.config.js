@@ -1,7 +1,7 @@
 module.exports = {
   entry: {
-    minesweeper: "./minesweeper.ls",
-    "spec/minesweeper_spec": "./spec/minesweeper_spec.ls"
+    "src/minesweeper": "./src/minesweeper.ls",
+    "spec/minesweeper_spec": "./spec/minesweeper-spec.ls"
   },
   output: {
     path: __dirname,
