@@ -50,7 +50,7 @@ get-neighbor-ids = (i, board-width, board-height) ->
 
 # game actions
 
-reset-game = (board-width, board-height, bombs-count) ->
+reset-game = ([board-width, board-height, bombs-count] = []) ->
   Immutable.Map().with-mutations ->
     it.set \game-running, false
       .set \game-won, false
@@ -81,13 +81,12 @@ lose-game = (state) ->
   state.set \game-lost, true
 
 increment-time = (state, time) ->
-  if (state.get \game-lost) || (state.get \game-won)
-    state.set \game-running, false
-  else
-    state.update \time-elapsed, (+ 1)
+  state.update \time-elapsed, (+ 1)
 
 reveal-field = (state, id) ->
-  if (state.get \game-lost) || (state.get \game-won) || state.getIn [\fields, id, \is-flagged] || state.getIn [\fields, id, \is-revealed]
+  if !state.get \game-running
+    start-game-with state, id
+  else if (state.get \game-lost) || (state.get \game-won) || state.getIn [\fields, id, \is-flagged] || state.getIn [\fields, id, \is-revealed]
     state
   else if state.getIn [\fields, id, \is-bomb]
     lose-game state
@@ -126,10 +125,10 @@ toggle-field-flag = (state, id) ->
 # dispatch actions
 
 update-game-state = (state, [action, value]) ->
+  console.log action, value
   switch action
-    case \reset-game then reset-game state, value
+    case \reset-game then reset-game value
     case \increment-time then increment-time state
-    case \start-game-with then check-game-won <| start-game-with state, value
     case \reveal-field then check-game-won <| reveal-field state, value
     case \toggle-field-flag then toggle-field-flag state, value
     default state
