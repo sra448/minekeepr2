@@ -9,11 +9,57 @@ html {
   font-size: 38px;
 }
 
+h1 {
+  font-family: 'Just Me Again Down Here', cursive;
+  font-weight: normal;
+  font-size: 72px;
+  margin: 0;
+}
+
+.board-settings {
+  margin-top: -20px;
+  margin-bottom: 20px;
+}
+
+.board-settings > a {
+  font-family: 'Just Me Again Down Here', cursive;
+  font-size: 24px;
+  margin: 10px;
+}
+.board-settings > a.active {
+  text-decoration: underline;
+}
+
+.board-size {
+  display: flex;
+  width: 640px;
+  margin: auto;
+}
+
+.board-size a {
+  font-size: 22px;
+  margin: 5px;
+}
+
+.board-info {
+  margin: auto;
+  display: flex;
+  width: 300px;
+}
+
+.board-info div {
+  font-size: 28px;
+}
+
+#reset-game {
+  color: #C5C66C;
+}
+
 .board {
   display: table;
   border-collapse: collapse;
   background: #222;
-  border: 1px solid black;
+  border: 2px solid #565656;
   margin: auto;
 
   -webkit-touch-callout: none;
@@ -68,7 +114,7 @@ div[class=cell]:hover {
 }
 
 .bomb {
-  color: #D46C43;
+  color: #B04A58;
   font-size: 0.8em;
 }
 
