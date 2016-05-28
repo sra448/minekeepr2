@@ -9,20 +9,13 @@ const BOARD_MEDIUM = [16, 16, 40]
 const BOARD_HARD = [30, 20, 99]
 const HTML_CONTAINER = document.get-element-by-id \container
 
-time-increments = do
-  Rx.Observable.interval 1000
-    .map -> [\increment-time]
-
-player-clicks = do
+clicks = Rx.Observable.from-event HTML_CONTAINER, \click
+right-clicks = do
   Rx.Observable
-    .fromEvent HTML_CONTAINER, \click
-    .filter (.target.id)
+    .from-event HTML_CONTAINER, \contextmenu
+    .do -> it.preventDefault()
 
-player-resets-game = do
-  player-clicks
-    .filter -> /^reset/.test it.target.id
-    .map -> [\reset-game, BOARD_MEDIUM]
-    .start-with [\reset-game, BOARD_MEDIUM]
+player-clicks = clicks.filter (.target.id)
 
 player-reveals-field = do
   player-clicks
@@ -30,25 +23,37 @@ player-reveals-field = do
     .map -> [\reveal-field, +it.target.id]
 
 player-toggles-cell = do
-  Rx.Observable
-    .fromEvent HTML_CONTAINER, \contextmenu
+  right-clicks
     .filter (.target.id)
-    .do -> it.preventDefault()
     .map -> [\toggle-field-flag, +it.target.id]
 
-player-starts-game = do
-  player-reveals-field.take 1
+stop-timer = new Rx.Subject
+maybe-stop-timer = (state) ->
+  if (state.get \game-won) || (state.get \game-lost)
+    stop-timer.on-next true
 
-player-acting = do
-  Rx.Observable
-    .merge [time-increments, player-reveals-field, player-toggles-cell]
+player-resets-game = do
+  player-clicks
+    .filter -> /^reset/.test it.target.id
+    .do -> stop-timer.on-next true
+    .map -> [\reset-game, BOARD_EASY]
+    .start-with [\reset-game, BOARD_EASY]
 
 render-game = (world) ->
-  React-DOM.render (game-ui {world}), HTML_CONTAINER
+    React-DOM.render (game-ui {world}), HTML_CONTAINER
+
+game-interactions = ->
+  interactions = Rx.Observable.merge [player-reveals-field, player-toggles-cell]
+  time-increments = interactions.first().flat-map ->
+    Rx.Observable
+      .interval 1000
+      .map -> [\increment-time]
+  Rx.Observable
+    .merge [(Rx.Observable.return it), interactions, time-increments]
+    .take-until stop-timer
 
 player-resets-game
-  # .flat-map-latest -> player-starts-game
-  .flat-map ->
-    Rx.Observable.merge [(Rx.Observable.return it), player-acting]
+  .flat-map game-interactions
   .scan update-game-state, 0
+  .do maybe-stop-timer
   .subscribe render-game
