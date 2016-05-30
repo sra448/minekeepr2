@@ -34,6 +34,7 @@ h1 {
   display: flex;
   width: 640px;
   margin: auto;
+  margin-bottom: 30px;
 }
 
 .board-size a {
@@ -47,12 +48,34 @@ h1 {
   width: 300px;
 }
 
-.board-info div {
+.board-info > div {
   font-size: 28px;
+  padding-top: 6px;
 }
 
 #reset-game {
+  flex: 1;
+  padding: 0;
+}
+
+#reset-game > div {
+  font-size: 12px;
+  margin-top: -3px;
+  margin-bottom: 10px;
+}
+
+#reset-game > .smiley {
   color: #C5C66C;
+  margin-top: -10px;
+  margin-bottom: 0px;
+  font-size: 40px;
+}
+
+#reset-game.game-lost > .smiley{
+  transform: rotate(180deg);
+  color: #B04A58;
+  margin-top: -3px;
+  margin-bottom: -10px;
 }
 
 .board {

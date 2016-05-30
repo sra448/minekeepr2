@@ -25,8 +25,9 @@ board-ui = ({world}) ->
             field: (world.get \fields).get id
 
 
-module.exports = ({world, current-difficulty, change-board-size}) ->
+module.exports = ({world, current-difficulty, change-board-size, reset-game}) ->
   size = [(world.get \board-width), (world.get \board-height), (world.get \bombs-count)]
+  game-state = if world.get \game-lost then \game-lost else if world.get \game-won then \game-won else ""
 
   div {},
     h1 {}, "Minesweeper"
@@ -52,13 +53,9 @@ module.exports = ({world, current-difficulty, change-board-size}) ->
 
     div {class-name:\board-info},
       div {style:flex:"1"}, "\uD83D\uDCA3 " + ((world.get \bombs-count) - (world.get \fields-flagged))
-      div {id:\reset-game, style:flex:"1"},
-        if world.get \game-lost
-          \\u2639
-        else if world.get \game-won
-          \won
-        else
-          \\u263A
-      div {style:flex:"1"}, "\u23F1 " + world.get \time-elapsed
+      div {id:\reset-game, class-name:game-state, on-click:reset-game},
+        div {class-name:\smiley}, \\u263A
+        div {}, \reset
+      div {style:flex:"1"}, (world.get \time-elapsed) + " \uD83D\uDD64"
 
     board-ui {world}
