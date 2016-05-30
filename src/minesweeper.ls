@@ -49,17 +49,13 @@ player-resets-game = do
 current-difficulty = \medium
 board-changes = new Rx.Subject
 change-board-size = (difficulty, board-size) ->
+  current-difficulty := difficulty
   size = board-size || DIFFICULTIES[difficulty]
-  if size?
-    current-difficulty := difficulty
-    board-changes.on-next [\reset-game, size]
-  else
-    board-changes.on-next [\reset-game, DIFFICULTIES[current-difficulty]]
-    current-difficulty := difficulty
+  board-changes.on-next [\reset-game, size]
 
 game-resets = new Rx.Subject
 reset-game = ->
-  game-resets.on-next [\reset-game, DIFFICULTIES[current-difficulty]]
+  game-resets.on-next [\reset-game]
 
 render-game = (world) ->
     React-DOM.render (game-ui {world, current-difficulty, change-board-size, reset-game}), HTML_CONTAINER
@@ -78,6 +74,8 @@ game-interactions = ->
 game-starts = do
   Rx.Observable
     .merge [board-changes, game-resets]
+    .scan (([_, prev-value], [action, value]) ->
+      [action, value || prev-value]), [0, DEFAULT_DIFFICULTY]
     .do -> stop-timer.on-next true
 
 game-starts

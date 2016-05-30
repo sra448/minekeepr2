@@ -5,6 +5,10 @@ html {
   text-align: center;
 }
 
+a {
+  cursor: pointer;
+}
+
 #reset-game {
   font-size: 38px;
 }
@@ -76,6 +80,10 @@ h1 {
   color: #B04A58;
   margin-top: -3px;
   margin-bottom: -10px;
+}
+
+#reset-game.game-won > .smiley{
+  color: #33AB33;
 }
 
 .board {

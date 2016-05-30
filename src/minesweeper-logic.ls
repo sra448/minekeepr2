@@ -125,7 +125,6 @@ toggle-field-flag = (state, id) ->
 # dispatch actions
 
 update-game-state = (state, [action, value]) ->
-  console.log action, value
   switch action
     case \reset-game then reset-game value
     case \increment-time then increment-time state

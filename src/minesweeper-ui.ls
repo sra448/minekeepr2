@@ -53,7 +53,7 @@ module.exports = ({world, current-difficulty, change-board-size, reset-game}) ->
 
     div {class-name:\board-info},
       div {style:flex:"1"}, "\uD83D\uDCA3 " + ((world.get \bombs-count) - (world.get \fields-flagged))
-      div {id:\reset-game, class-name:game-state, on-click:reset-game},
+      a {id:\reset-game, class-name:game-state, on-click:reset-game},
         div {class-name:\smiley}, \\u263A
         div {}, \reset
       div {style:flex:"1"}, (world.get \time-elapsed) + " \uD83D\uDD64"
