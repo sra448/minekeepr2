@@ -142,7 +142,7 @@
 	    ? arg$
 	    : [], boardWidth = ref$[0], boardHeight = ref$[1], bombsCount = ref$[2];
 	  return Immutable.Map().withMutations(function(it){
-	    return it.set('game-running', false).set('game-won', false).set('game-lost', false).set('time-elapsed', 0).set('fields-flagged', 0).set('fields-revealed', 0).set('board-width', boardWidth || it.get('board-width')).set('board-height', boardHeight || it.get('board-height')).set('bombs-count', bombsCount || it.get('bombs-count')).set('fields', Fields(it.get('board-width'), it.get('board-height'), 0));
+	    return it.set('game-running', false).set('game-won', false).set('game-lost', false).set('time-elapsed', 0).set('fields-flagged', 0).set('fields-revealed', 0).set('board-width', boardWidth || it.get('board-width')).set('board-height', boardHeight || it.get('board-height')).set('bombs-count', Math.floor(bombsCount || it.get('bombs-count'))).set('fields', Fields(it.get('board-width'), it.get('board-height'), 0));
 	  });
 	};
 	startGameWith = function(state, initialCellId){
