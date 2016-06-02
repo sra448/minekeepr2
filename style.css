@@ -9,7 +9,7 @@ a {
   cursor: pointer;
 }
 
-#reset-game {
+.reset-game {
   font-size: 38px;
 }
 
@@ -34,14 +34,14 @@ h1 {
   text-decoration: underline;
 }
 
-.board-size {
+.board-size-panel {
   display: flex;
   width: 640px;
   margin: auto;
   margin-bottom: 30px;
 }
 
-.board-size a {
+.board-size-panel a {
   font-size: 22px;
   margin: 5px;
 }
@@ -57,32 +57,32 @@ h1 {
   padding-top: 6px;
 }
 
-#reset-game {
+.reset-game {
   flex: 1;
   padding: 0;
 }
 
-#reset-game > div {
+.reset-game > div {
   font-size: 12px;
   margin-top: -3px;
   margin-bottom: 10px;
 }
 
-#reset-game > .smiley {
+.reset-game > .smiley {
   color: #C5C66C;
   margin-top: -10px;
   margin-bottom: 0px;
   font-size: 40px;
 }
 
-#reset-game.game-lost > .smiley{
+.reset-game.game-lost > .smiley{
   transform: rotate(180deg);
   color: #B04A58;
   margin-top: -3px;
   margin-bottom: -10px;
 }
 
-#reset-game.game-won > .smiley{
+.reset-game.game-won > .smiley{
   color: #33AB33;
 }
 
