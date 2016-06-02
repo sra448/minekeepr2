@@ -60,7 +60,7 @@ reset-game = ([board-width, board-height, bombs-count] = []) ->
       .set \fields-revealed, 0
       .set \board-width, board-width || it.get \board-width
       .set \board-height, board-height || it.get \board-height
-      .set \bombs-count, bombs-count || it.get \bombs-count
+      .set \bombs-count, Math.floor bombs-count || it.get \bombs-count
       .set \fields, Fields (it.get \board-width), (it.get \board-height), 0
 
 start-game-with = (state, initial-cell-id) ->
