@@ -9,5 +9,4 @@ observe-game
     ui = game-ui {world, difficulty, reset-game, change-board, reveal-field, toggle-field}
     React-DOM.render ui, HTML_CONTAINER
 
-# actually kick off the chain
 reset-game!

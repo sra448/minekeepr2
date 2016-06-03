@@ -37,19 +37,16 @@ reset-game = ->
 
 # internal observers
 
-maybe-finish-game = (state) ->
-  if (state.get \game-won) || (state.get \game-lost)
-    game-is-finished.on-next true
+time-increments = do
+  Rx.Observable
+    .interval 1000
+    .map -> [\increment-time]
 
 game-interactions = ->
   interactions = Rx.Observable.merge [player-reveals-field, player-toggles-field]
-  time-increments = interactions.first().flat-map ->
-    Rx.Observable
-      .interval 1000
-      .map -> [\increment-time]
-
+  game-time-increments = interactions.first().flat-map -> time-increments
   Rx.Observable
-    .merge [(Rx.Observable.return it), interactions, time-increments]
+    .merge [(Rx.Observable.return it), interactions, game-time-increments]
     .take-until game-is-finished
 
 observe-difficulty = do
@@ -59,15 +56,20 @@ observe-difficulty = do
 remember-board-size = ([_, prev-value], [action, value]) ->
   [action, value || prev-value]
 
-game-starts = do
+maybe-finish-game = (state) ->
+  if (state.get \game-won) || (state.get \game-lost)
+    game-is-finished.on-next true
+
+game-resets = do
   Rx.Observable
     .merge [player-changes-board, player-resets-game]
     .scan remember-board-size, [0, DEFAULT_DIFFICULTY]
-    .do -> game-is-finished.on-next true
+
+# the game observer combines all of the above
 
 observe-game = do
-  game-starts
-    .flat-map game-interactions
+  game-resets
+    .flat-map-latest game-interactions
     .scan update-game-state, 0
     .do maybe-finish-game
     .combine-latest observe-difficulty, (world, difficulty) ->
