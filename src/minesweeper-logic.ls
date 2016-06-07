@@ -122,17 +122,10 @@ toggle-field-flag = (state, id) ->
       it.setIn [\fields, id, \is-flagged], !is-currently-flagged
         .update \fields-flagged, is-currently-flagged && (- 1) || (+ 1)
 
-# dispatch actions
-
-update-game-state = (state, [action, value]) ->
-  switch action
-    case \reset-game then reset-game value
-    case \increment-time then increment-time state
-    case \reveal-field then check-game-won <| reveal-field state, value
-    case \toggle-field-flag then toggle-field-flag state, value
-    default state
 
 module.exports = {
   reset-game
-  update-game-state
+  increment-time
+  toggle-field-flag
+  reveal-field: check-game-won << reveal-field
 }
