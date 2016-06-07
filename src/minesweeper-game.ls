@@ -7,7 +7,7 @@ update-game-state = (state, [action, value]) ->
   switch action
     case \reset-game then reset-game value
     case \increment-time then increment-time state
-    case \reveal-field then check-game-won <| reveal-field state, value
+    case \reveal-field then reveal-field state, value
     case \toggle-field-flag then toggle-field-flag state, value
     default state
 
