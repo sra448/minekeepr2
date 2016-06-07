@@ -57,14 +57,14 @@
 	    });
 	  });
 	});
-	//# sourceMappingURL=C:\Users\Florian\Desktop\work\minekeepr2\node_modules\livescript-loader\index.js!C:\Users\Florian\Desktop\work\minekeepr2\spec\minesweeper-spec.ls.map
+	//# sourceMappingURL=c:\Users\Florian\Desktop\work\minekeepr2\node_modules\livescript-loader\index.js!c:\Users\Florian\Desktop\work\minekeepr2\spec\minesweeper-spec.ls.map
 
 
 /***/ },
 /* 1 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Immutable, shuffle, ref$, map, filter, fold, flip, Field, Fields, getBoardFor, getNeighborCoordinates, checkBoardBoundaries, getNeighborIds, resetGame, startGameWith, checkGameWon, loseGame, incrementTime, revealField, setFieldRevealed, toggleFieldFlag, updateGameState;
+	var Immutable, shuffle, ref$, map, filter, fold, flip, Field, Fields, getBoardFor, getNeighborCoordinates, checkBoardBoundaries, getNeighborIds, resetGame, startGameWith, checkGameWon, loseGame, incrementTime, revealField, setFieldRevealed, toggleFieldFlag;
 	Immutable = __webpack_require__(2);
 	shuffle = __webpack_require__(3).shuffle;
 	ref$ = __webpack_require__(5), map = ref$.map, filter = ref$.filter, fold = ref$.fold, flip = ref$.flip;
@@ -226,27 +226,24 @@
 	    });
 	  }
 	};
-	updateGameState = function(state, arg$){
-	  var action, value;
-	  action = arg$[0], value = arg$[1];
-	  switch (action) {
-	  case 'reset-game':
-	    return resetGame(value);
-	  case 'increment-time':
-	    return incrementTime(state);
-	  case 'reveal-field':
-	    return checkGameWon(revealField(state, value));
-	  case 'toggle-field-flag':
-	    return toggleFieldFlag(state, value);
-	  default:
-	    return state;
-	  }
-	};
 	module.exports = {
 	  resetGame: resetGame,
-	  updateGameState: updateGameState
+	  incrementTime: incrementTime,
+	  toggleFieldFlag: toggleFieldFlag,
+	  revealField: compose$(revealField, checkGameWon)
 	};
-	//# sourceMappingURL=C:\Users\Florian\Desktop\work\minekeepr2\node_modules\livescript-loader\index.js!C:\Users\Florian\Desktop\work\minekeepr2\src\minesweeper-logic.ls.map
+	function compose$() {
+	  var functions = arguments;
+	  return function() {
+	    var i, result;
+	    result = functions[0].apply(this, arguments);
+	    for (i = 1; i < functions.length; ++i) {
+	      result = functions[i](result);
+	    }
+	    return result;
+	  };
+	}
+	//# sourceMappingURL=c:\Users\Florian\Desktop\work\minekeepr2\node_modules\livescript-loader\index.js!c:\Users\Florian\Desktop\work\minekeepr2\src\minesweeper-logic.ls.map
 
 
 /***/ },

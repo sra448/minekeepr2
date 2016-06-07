@@ -44,33 +44,42 @@
 /* 0 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var ReactDOM, gameUi, ref$, observeGame, resetGame, changeBoard, revealField, toggleField, HTML_CONTAINER;
+	var ReactDOM, game, gameUi, HTML_CONTAINER, DIFFICULTIES, msGame;
 	ReactDOM = __webpack_require__(11);
-	gameUi = __webpack_require__(157);
-	ref$ = __webpack_require__(170), observeGame = ref$.observeGame, resetGame = ref$.resetGame, changeBoard = ref$.changeBoard, revealField = ref$.revealField, toggleField = ref$.toggleField;
+	game = __webpack_require__(157);
+	gameUi = __webpack_require__(159);
 	HTML_CONTAINER = document.getElementById('container');
-	observeGame.subscribe(function(arg$){
+	DIFFICULTIES = {
+	  easy: [10, 10, 9],
+	  medium: [16, 16, 40],
+	  hard: [30, 20, 99]
+	};
+	msGame = new game({
+	  difficulties: DIFFICULTIES,
+	  defaultDifficulty: 'medium'
+	});
+	msGame.subscribe(function(arg$){
 	  var world, difficulty, ui;
 	  world = arg$.world, difficulty = arg$.difficulty;
 	  ui = gameUi({
 	    world: world,
 	    difficulty: difficulty,
-	    resetGame: resetGame,
-	    changeBoard: changeBoard,
-	    revealField: revealField,
-	    toggleField: toggleField
+	    resetGame: msGame.reset,
+	    changeBoard: msGame.changeBoard,
+	    revealField: msGame.revealField,
+	    toggleField: msGame.toggleField
 	  });
 	  return ReactDOM.render(ui, HTML_CONTAINER);
 	});
-	resetGame();
-	//# sourceMappingURL=C:\Users\Florian\Desktop\work\minekeepr2\node_modules\livescript-loader\index.js!C:\Users\Florian\Desktop\work\minekeepr2\src\minesweeper.ls.map
+	msGame.reset();
+	//# sourceMappingURL=c:\Users\Florian\Desktop\work\minekeepr2\node_modules\livescript-loader\index.js!c:\Users\Florian\Desktop\work\minekeepr2\src\minesweeper.ls.map
 
 
 /***/ },
 /* 1 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Immutable, shuffle, ref$, map, filter, fold, flip, Field, Fields, getBoardFor, getNeighborCoordinates, checkBoardBoundaries, getNeighborIds, resetGame, startGameWith, checkGameWon, loseGame, incrementTime, revealField, setFieldRevealed, toggleFieldFlag, updateGameState;
+	var Immutable, shuffle, ref$, map, filter, fold, flip, Field, Fields, getBoardFor, getNeighborCoordinates, checkBoardBoundaries, getNeighborIds, resetGame, startGameWith, checkGameWon, loseGame, incrementTime, revealField, setFieldRevealed, toggleFieldFlag;
 	Immutable = __webpack_require__(2);
 	shuffle = __webpack_require__(3).shuffle;
 	ref$ = __webpack_require__(5), map = ref$.map, filter = ref$.filter, fold = ref$.fold, flip = ref$.flip;
@@ -232,27 +241,24 @@
 	    });
 	  }
 	};
-	updateGameState = function(state, arg$){
-	  var action, value;
-	  action = arg$[0], value = arg$[1];
-	  switch (action) {
-	  case 'reset-game':
-	    return resetGame(value);
-	  case 'increment-time':
-	    return incrementTime(state);
-	  case 'reveal-field':
-	    return checkGameWon(revealField(state, value));
-	  case 'toggle-field-flag':
-	    return toggleFieldFlag(state, value);
-	  default:
-	    return state;
-	  }
-	};
 	module.exports = {
 	  resetGame: resetGame,
-	  updateGameState: updateGameState
+	  incrementTime: incrementTime,
+	  toggleFieldFlag: toggleFieldFlag,
+	  revealField: compose$(revealField, checkGameWon)
 	};
-	//# sourceMappingURL=C:\Users\Florian\Desktop\work\minekeepr2\node_modules\livescript-loader\index.js!C:\Users\Florian\Desktop\work\minekeepr2\src\minesweeper-logic.ls.map
+	function compose$() {
+	  var functions = arguments;
+	  return function() {
+	    var i, result;
+	    result = functions[0].apply(this, arguments);
+	    for (i = 1; i < functions.length; ++i) {
+	      result = functions[i](result);
+	    }
+	    return result;
+	  };
+	}
+	//# sourceMappingURL=c:\Users\Florian\Desktop\work\minekeepr2\node_modules\livescript-loader\index.js!c:\Users\Florian\Desktop\work\minekeepr2\src\minesweeper-logic.ls.map
 
 
 /***/ },
@@ -41620,1264 +41626,94 @@
 /* 157 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var react, ref$, div, h1, a, input, cancelContextMenu, field, board, boardSizePanel;
-	react = __webpack_require__(158);
-	ref$ = react.DOM, div = ref$.div, h1 = ref$.h1, a = ref$.a, input = ref$.input;
-	cancelContextMenu = curry$(function(fn, e){
-	  e.preventDefault();
-	  return fn();
-	});
-	field = function(arg$){
-	  var id, field, gameLost, revealField, toggleField, surroundingBombsCount, className, value;
-	  id = arg$.id, field = arg$.field, gameLost = arg$.gameLost, revealField = arg$.revealField, toggleField = arg$.toggleField;
-	  if (!field.get('is-bomb') && field.get('is-revealed')) {
-	    surroundingBombsCount = field.get('surrounding-bombs-count');
-	    className = "cell revealed value-" + surroundingBombsCount;
-	    value = surroundingBombsCount > 0 && surroundingBombsCount || " ";
-	  } else if (field.get('is-flagged')) {
-	    className = "cell flagged";
-	    value = '\u2691';
-	  } else if (gameLost && field.get('is-bomb')) {
-	    className = "cell bomb";
-	    value = "\uD83D\uDCA3";
-	  } else {
-	    className = "cell";
-	    value = '-';
+	var Rx, ref$, resetGame, incrementTime, revealField, toggleFieldFlag, updateGameState;
+	Rx = __webpack_require__(158);
+	ref$ = __webpack_require__(1), resetGame = ref$.resetGame, incrementTime = ref$.incrementTime, revealField = ref$.revealField, toggleFieldFlag = ref$.toggleFieldFlag;
+	updateGameState = function(state, arg$){
+	  var action, value;
+	  action = arg$[0], value = arg$[1];
+	  switch (action) {
+	  case 'reset-game':
+	    return resetGame(value);
+	  case 'increment-time':
+	    return incrementTime(state);
+	  case 'reveal-field':
+	    return revealField(state, value);
+	  case 'toggle-field-flag':
+	    return toggleFieldFlag(state, value);
+	  default:
+	    return state;
 	  }
-	  return div({
-	    className: className,
-	    onClick: function(){
-	      return revealField(id);
-	    },
-	    onContextMenu: cancelContextMenu(function(){
-	      return toggleField(id);
-	    })
-	  }, value);
-	};
-	board = function(arg$){
-	  var world, revealField, toggleField, y, x, id;
-	  world = arg$.world, revealField = arg$.revealField, toggleField = arg$.toggleField;
-	  return div({
-	    className: 'board',
-	    id: 'board'
-	  }, (function(){
-	    var i$, to$, results$ = [];
-	    for (i$ = 0, to$ = world.get('board-height'); i$ < to$; ++i$) {
-	      y = i$;
-	      results$.push(div({
-	        className: 'row',
-	        key: "row-" + y
-	      }, (fn$())));
-	    }
-	    return results$;
-	    function fn$(){
-	      var i$, to$, results$ = [];
-	      for (i$ = 0, to$ = world.get('board-width'); i$ < to$; ++i$) {
-	        x = i$;
-	        id = y * world.get('board-width') + x;
-	        results$.push(field({
-	          id: id,
-	          gameLost: world.get('game-lost'),
-	          field: world.get('fields').get(id),
-	          revealField: revealField,
-	          toggleField: toggleField
-	        }));
-	      }
-	      return results$;
-	    }
-	  }()));
-	};
-	boardSizePanel = function(arg$){
-	  var width, height, bombsCount, changeBoard;
-	  width = arg$.width, height = arg$.height, bombsCount = arg$.bombsCount, changeBoard = arg$.changeBoard;
-	  return div({
-	    className: 'board-size-panel'
-	  }, div({
-	    style: {
-	      flex: 1
-	    }
-	  }, a({}, "\u2191 " + height), input({
-	    type: 'range',
-	    value: height,
-	    min: 9,
-	    max: 40,
-	    onChange: function(e){
-	      var bombsPercentage, newBombsCount;
-	      bombsPercentage = 100 / (width * height) * bombsCount;
-	      newBombsCount = width * +e.target.value / 100 * bombsPercentage;
-	      return changeBoard('custom', [width, +e.target.value, newBombsCount]);
-	    }
-	  })), div({
-	    style: {
-	      flex: 1
-	    }
-	  }, a({}, "\u2192 " + width), input({
-	    type: 'range',
-	    value: width,
-	    min: 9,
-	    max: 70,
-	    onChange: function(e){
-	      var bombsPercentage, newBombsCount;
-	      bombsPercentage = 100 / (width * height) * bombsCount;
-	      newBombsCount = height * +e.target.value / 100 * bombsPercentage;
-	      return changeBoard('custom', [+e.target.value, height, newBombsCount]);
-	    }
-	  })), div({
-	    style: {
-	      flex: 1
-	    }
-	  }, a({}, "\uD83D\uDCA3 " + Math.floor(bombsCount)), input({
-	    type: 'range',
-	    value: bombsCount,
-	    min: 9,
-	    max: Math.min(width * height / 4),
-	    onChange: function(e){
-	      return changeBoard('custom', [width, height, +e.target.value]);
-	    }
-	  })));
 	};
 	module.exports = function(arg$){
-	  var world, difficulty, changeBoard, resetGame, revealField, toggleField, size, ref$, width, height, bombsCount, gameState;
-	  world = arg$.world, difficulty = arg$.difficulty, changeBoard = arg$.changeBoard, resetGame = arg$.resetGame, revealField = arg$.revealField, toggleField = arg$.toggleField;
-	  ref$ = size = [world.get('board-width'), world.get('board-height'), world.get('bombs-count')], width = ref$[0], height = ref$[1], bombsCount = ref$[2];
-	  gameState = world.get('game-lost')
-	    ? 'game-lost'
-	    : world.get('game-won') ? 'game-won' : "";
-	  return div({}, h1({}, "Minesweeper"), div({
-	    className: 'board-settings'
-	  }, a({
-	    className: difficulty === 'easy' ? "active" : void 8,
-	    onClick: function(){
-	      return changeBoard('easy');
-	    }
-	  }, 'easy'), a({
-	    className: difficulty === 'medium' ? "active" : void 8,
-	    onClick: function(){
-	      return changeBoard('medium');
-	    }
-	  }, 'medium'), a({
-	    className: difficulty === 'hard' ? "active" : void 8,
-	    onClick: function(){
-	      return changeBoard('hard');
-	    }
-	  }, 'hard'), a({
-	    className: difficulty === 'custom' ? "active" : void 8,
-	    onClick: function(){
-	      return changeBoard('custom', size);
-	    }
-	  }, 'custom')), difficulty === 'custom' ? boardSizePanel({
-	    width: width,
-	    height: height,
-	    bombsCount: bombsCount,
-	    changeBoard: changeBoard
-	  }) : void 8, div({
-	    className: 'board-info'
-	  }, div({
-	    style: {
-	      flex: "1"
-	    }
-	  }, "\uD83D\uDCA3 " + (world.get('bombs-count') - world.get('fields-flagged'))), a({
-	    className: "reset-game " + gameState,
-	    onClick: resetGame
-	  }, div({
-	    className: 'smiley'
-	  }, '\u263A'), div({}, 'reset')), div({
-	    style: {
-	      flex: "1"
-	    }
-	  }, world.get('time-elapsed') + " \uD83D\uDD64")), board({
-	    world: world,
-	    revealField: revealField,
-	    toggleField: toggleField
-	  }));
-	};
-	function curry$(f, bound){
-	  var context,
-	  _curry = function(args) {
-	    return f.length > 1 ? function(){
-	      var params = args ? args.concat() : [];
-	      context = bound ? context || this : this;
-	      return params.push.apply(params, arguments) <
-	          f.length && arguments.length ?
-	        _curry.call(context, params) : f.apply(context, params);
-	    } : f;
+	  var difficulties, defaultDifficulty, playerRevealsField, playerTogglesField, playerChangesDifficulty, playerChangesBoard, playerResetsGame, gameIsFinished, revealField, toggleField, changeBoard, resetGame, timeIncrements, gameInteractions, observeDifficulty, rememberBoardSize, maybeFinishGame, gameResets, observeGame;
+	  difficulties = arg$.difficulties, defaultDifficulty = arg$.defaultDifficulty;
+	  playerRevealsField = new Rx.Subject;
+	  playerTogglesField = new Rx.Subject;
+	  playerChangesDifficulty = new Rx.Subject;
+	  playerChangesBoard = new Rx.Subject;
+	  playerResetsGame = new Rx.Subject;
+	  gameIsFinished = new Rx.Subject;
+	  revealField = function(id){
+	    return playerRevealsField.onNext(['reveal-field', id]);
 	  };
-	  return _curry();
-	}
-	//# sourceMappingURL=C:\Users\Florian\Desktop\work\minekeepr2\node_modules\livescript-loader\index.js!C:\Users\Florian\Desktop\work\minekeepr2\src\minesweeper-ui.ls.map
+	  toggleField = function(id){
+	    return playerTogglesField.onNext(['toggle-field-flag', id]);
+	  };
+	  changeBoard = function(difficulty, boardSize){
+	    var size;
+	    size = boardSize || difficulties[difficulty];
+	    playerChangesDifficulty.onNext(difficulty);
+	    return playerChangesBoard.onNext(['reset-game', size]);
+	  };
+	  resetGame = function(){
+	    return playerResetsGame.onNext(['reset-game']);
+	  };
+	  timeIncrements = Rx.Observable.interval(1000).map(function(){
+	    return ['increment-time'];
+	  });
+	  gameInteractions = function(it){
+	    var interactions, gameTimeIncrements;
+	    interactions = Rx.Observable.merge([playerRevealsField, playerTogglesField]);
+	    gameTimeIncrements = interactions.first().flatMap(function(){
+	      return timeIncrements;
+	    });
+	    return Rx.Observable.merge([Rx.Observable['return'](it), interactions, gameTimeIncrements]).takeUntil(gameIsFinished);
+	  };
+	  observeDifficulty = playerChangesDifficulty.startWith('medium');
+	  rememberBoardSize = function(arg$, arg1$){
+	    var _, prevValue, action, value;
+	    _ = arg$[0], prevValue = arg$[1];
+	    action = arg1$[0], value = arg1$[1];
+	    return [action, value || prevValue];
+	  };
+	  maybeFinishGame = function(state){
+	    if (state.get('game-won') || state.get('game-lost')) {
+	      return gameIsFinished.onNext(true);
+	    }
+	  };
+	  gameResets = Rx.Observable.merge([playerChangesBoard, playerResetsGame]).scan(rememberBoardSize, [0, difficulties[defaultDifficulty]]);
+	  observeGame = gameResets.flatMapLatest(gameInteractions).scan(updateGameState, 0)['do'](maybeFinishGame).combineLatest(observeDifficulty, function(world, difficulty){
+	    return {
+	      world: world,
+	      difficulty: difficulty
+	    };
+	  });
+	  return {
+	    reset: resetGame,
+	    changeBoard: changeBoard,
+	    revealField: revealField,
+	    toggleField: toggleField,
+	    subscribe: function(fn){
+	      return observeGame.subscribe(fn);
+	    }
+	  };
+	};
+	//# sourceMappingURL=c:\Users\Florian\Desktop\work\minekeepr2\node_modules\livescript-loader\index.js!c:\Users\Florian\Desktop\work\minekeepr2\src\minesweeper-game.ls.map
 
 
 /***/ },
 /* 158 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	module.exports = __webpack_require__(159);
-
-
-/***/ },
-/* 159 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/**
-	 * Copyright 2013-2015, Facebook, Inc.
-	 * All rights reserved.
-	 *
-	 * This source code is licensed under the BSD-style license found in the
-	 * LICENSE file in the root directory of this source tree. An additional grant
-	 * of patent rights can be found in the PATENTS file in the same directory.
-	 *
-	 * @providesModule React
-	 */
-
-	'use strict';
-
-	var ReactDOM = __webpack_require__(12);
-	var ReactDOMServer = __webpack_require__(160);
-	var ReactIsomorphic = __webpack_require__(164);
-
-	var assign = __webpack_require__(48);
-	var deprecated = __webpack_require__(169);
-
-	// `version` will be added here by ReactIsomorphic.
-	var React = {};
-
-	assign(React, ReactIsomorphic);
-
-	assign(React, {
-	  // ReactDOM
-	  findDOMNode: deprecated('findDOMNode', 'ReactDOM', 'react-dom', ReactDOM, ReactDOM.findDOMNode),
-	  render: deprecated('render', 'ReactDOM', 'react-dom', ReactDOM, ReactDOM.render),
-	  unmountComponentAtNode: deprecated('unmountComponentAtNode', 'ReactDOM', 'react-dom', ReactDOM, ReactDOM.unmountComponentAtNode),
-
-	  // ReactDOMServer
-	  renderToString: deprecated('renderToString', 'ReactDOMServer', 'react-dom/server', ReactDOMServer, ReactDOMServer.renderToString),
-	  renderToStaticMarkup: deprecated('renderToStaticMarkup', 'ReactDOMServer', 'react-dom/server', ReactDOMServer, ReactDOMServer.renderToStaticMarkup)
-	});
-
-	React.__SECRET_DOM_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactDOM;
-	React.__SECRET_DOM_SERVER_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactDOMServer;
-
-	module.exports = React;
-
-/***/ },
-/* 160 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/**
-	 * Copyright 2013-2015, Facebook, Inc.
-	 * All rights reserved.
-	 *
-	 * This source code is licensed under the BSD-style license found in the
-	 * LICENSE file in the root directory of this source tree. An additional grant
-	 * of patent rights can be found in the PATENTS file in the same directory.
-	 *
-	 * @providesModule ReactDOMServer
-	 */
-
-	'use strict';
-
-	var ReactDefaultInjection = __webpack_require__(80);
-	var ReactServerRendering = __webpack_require__(161);
-	var ReactVersion = __webpack_require__(155);
-
-	ReactDefaultInjection.inject();
-
-	var ReactDOMServer = {
-	  renderToString: ReactServerRendering.renderToString,
-	  renderToStaticMarkup: ReactServerRendering.renderToStaticMarkup,
-	  version: ReactVersion
-	};
-
-	module.exports = ReactDOMServer;
-
-/***/ },
-/* 161 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/* WEBPACK VAR INJECTION */(function(process) {/**
-	 * Copyright 2013-2015, Facebook, Inc.
-	 * All rights reserved.
-	 *
-	 * This source code is licensed under the BSD-style license found in the
-	 * LICENSE file in the root directory of this source tree. An additional grant
-	 * of patent rights can be found in the PATENTS file in the same directory.
-	 *
-	 * @typechecks static-only
-	 * @providesModule ReactServerRendering
-	 */
-	'use strict';
-
-	var ReactDefaultBatchingStrategy = __webpack_require__(101);
-	var ReactElement = __webpack_require__(51);
-	var ReactInstanceHandles = __webpack_require__(54);
-	var ReactMarkupChecksum = __webpack_require__(57);
-	var ReactServerBatchingStrategy = __webpack_require__(162);
-	var ReactServerRenderingTransaction = __webpack_require__(163);
-	var ReactUpdates = __webpack_require__(63);
-
-	var emptyObject = __webpack_require__(67);
-	var instantiateReactComponent = __webpack_require__(71);
-	var invariant = __webpack_require__(22);
-
-	/**
-	 * @param {ReactElement} element
-	 * @return {string} the HTML markup
-	 */
-	function renderToString(element) {
-	  !ReactElement.isValidElement(element) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'renderToString(): You must pass a valid ReactElement.') : invariant(false) : undefined;
-
-	  var transaction;
-	  try {
-	    ReactUpdates.injection.injectBatchingStrategy(ReactServerBatchingStrategy);
-
-	    var id = ReactInstanceHandles.createReactRootID();
-	    transaction = ReactServerRenderingTransaction.getPooled(false);
-
-	    return transaction.perform(function () {
-	      var componentInstance = instantiateReactComponent(element, null);
-	      var markup = componentInstance.mountComponent(id, transaction, emptyObject);
-	      return ReactMarkupChecksum.addChecksumToMarkup(markup);
-	    }, null);
-	  } finally {
-	    ReactServerRenderingTransaction.release(transaction);
-	    // Revert to the DOM batching strategy since these two renderers
-	    // currently share these stateful modules.
-	    ReactUpdates.injection.injectBatchingStrategy(ReactDefaultBatchingStrategy);
-	  }
-	}
-
-	/**
-	 * @param {ReactElement} element
-	 * @return {string} the HTML markup, without the extra React ID and checksum
-	 * (for generating static pages)
-	 */
-	function renderToStaticMarkup(element) {
-	  !ReactElement.isValidElement(element) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'renderToStaticMarkup(): You must pass a valid ReactElement.') : invariant(false) : undefined;
-
-	  var transaction;
-	  try {
-	    ReactUpdates.injection.injectBatchingStrategy(ReactServerBatchingStrategy);
-
-	    var id = ReactInstanceHandles.createReactRootID();
-	    transaction = ReactServerRenderingTransaction.getPooled(true);
-
-	    return transaction.perform(function () {
-	      var componentInstance = instantiateReactComponent(element, null);
-	      return componentInstance.mountComponent(id, transaction, emptyObject);
-	    }, null);
-	  } finally {
-	    ReactServerRenderingTransaction.release(transaction);
-	    // Revert to the DOM batching strategy since these two renderers
-	    // currently share these stateful modules.
-	    ReactUpdates.injection.injectBatchingStrategy(ReactDefaultBatchingStrategy);
-	  }
-	}
-
-	module.exports = {
-	  renderToString: renderToString,
-	  renderToStaticMarkup: renderToStaticMarkup
-	};
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
-
-/***/ },
-/* 162 */
-/***/ function(module, exports) {
-
-	/**
-	 * Copyright 2014-2015, Facebook, Inc.
-	 * All rights reserved.
-	 *
-	 * This source code is licensed under the BSD-style license found in the
-	 * LICENSE file in the root directory of this source tree. An additional grant
-	 * of patent rights can be found in the PATENTS file in the same directory.
-	 *
-	 * @providesModule ReactServerBatchingStrategy
-	 * @typechecks
-	 */
-
-	'use strict';
-
-	var ReactServerBatchingStrategy = {
-	  isBatchingUpdates: false,
-	  batchedUpdates: function (callback) {
-	    // Don't do anything here. During the server rendering we don't want to
-	    // schedule any updates. We will simply ignore them.
-	  }
-	};
-
-	module.exports = ReactServerBatchingStrategy;
-
-/***/ },
-/* 163 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/**
-	 * Copyright 2014-2015, Facebook, Inc.
-	 * All rights reserved.
-	 *
-	 * This source code is licensed under the BSD-style license found in the
-	 * LICENSE file in the root directory of this source tree. An additional grant
-	 * of patent rights can be found in the PATENTS file in the same directory.
-	 *
-	 * @providesModule ReactServerRenderingTransaction
-	 * @typechecks
-	 */
-
-	'use strict';
-
-	var PooledClass = __webpack_require__(65);
-	var CallbackQueue = __webpack_require__(64);
-	var Transaction = __webpack_require__(66);
-
-	var assign = __webpack_require__(48);
-	var emptyFunction = __webpack_require__(24);
-
-	/**
-	 * Provides a `CallbackQueue` queue for collecting `onDOMReady` callbacks
-	 * during the performing of the transaction.
-	 */
-	var ON_DOM_READY_QUEUEING = {
-	  /**
-	   * Initializes the internal `onDOMReady` queue.
-	   */
-	  initialize: function () {
-	    this.reactMountReady.reset();
-	  },
-
-	  close: emptyFunction
-	};
-
-	/**
-	 * Executed within the scope of the `Transaction` instance. Consider these as
-	 * being member methods, but with an implied ordering while being isolated from
-	 * each other.
-	 */
-	var TRANSACTION_WRAPPERS = [ON_DOM_READY_QUEUEING];
-
-	/**
-	 * @class ReactServerRenderingTransaction
-	 * @param {boolean} renderToStaticMarkup
-	 */
-	function ReactServerRenderingTransaction(renderToStaticMarkup) {
-	  this.reinitializeTransaction();
-	  this.renderToStaticMarkup = renderToStaticMarkup;
-	  this.reactMountReady = CallbackQueue.getPooled(null);
-	  this.useCreateElement = false;
-	}
-
-	var Mixin = {
-	  /**
-	   * @see Transaction
-	   * @abstract
-	   * @final
-	   * @return {array} Empty list of operation wrap procedures.
-	   */
-	  getTransactionWrappers: function () {
-	    return TRANSACTION_WRAPPERS;
-	  },
-
-	  /**
-	   * @return {object} The queue to collect `onDOMReady` callbacks with.
-	   */
-	  getReactMountReady: function () {
-	    return this.reactMountReady;
-	  },
-
-	  /**
-	   * `PooledClass` looks for this, and will invoke this before allowing this
-	   * instance to be reused.
-	   */
-	  destructor: function () {
-	    CallbackQueue.release(this.reactMountReady);
-	    this.reactMountReady = null;
-	  }
-	};
-
-	assign(ReactServerRenderingTransaction.prototype, Transaction.Mixin, Mixin);
-
-	PooledClass.addPoolingTo(ReactServerRenderingTransaction);
-
-	module.exports = ReactServerRenderingTransaction;
-
-/***/ },
-/* 164 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/* WEBPACK VAR INJECTION */(function(process) {/**
-	 * Copyright 2013-2015, Facebook, Inc.
-	 * All rights reserved.
-	 *
-	 * This source code is licensed under the BSD-style license found in the
-	 * LICENSE file in the root directory of this source tree. An additional grant
-	 * of patent rights can be found in the PATENTS file in the same directory.
-	 *
-	 * @providesModule ReactIsomorphic
-	 */
-
-	'use strict';
-
-	var ReactChildren = __webpack_require__(119);
-	var ReactComponent = __webpack_require__(132);
-	var ReactClass = __webpack_require__(131);
-	var ReactDOMFactories = __webpack_require__(165);
-	var ReactElement = __webpack_require__(51);
-	var ReactElementValidator = __webpack_require__(166);
-	var ReactPropTypes = __webpack_require__(116);
-	var ReactVersion = __webpack_require__(155);
-
-	var assign = __webpack_require__(48);
-	var onlyChild = __webpack_require__(168);
-
-	var createElement = ReactElement.createElement;
-	var createFactory = ReactElement.createFactory;
-	var cloneElement = ReactElement.cloneElement;
-
-	if (process.env.NODE_ENV !== 'production') {
-	  createElement = ReactElementValidator.createElement;
-	  createFactory = ReactElementValidator.createFactory;
-	  cloneElement = ReactElementValidator.cloneElement;
-	}
-
-	var React = {
-
-	  // Modern
-
-	  Children: {
-	    map: ReactChildren.map,
-	    forEach: ReactChildren.forEach,
-	    count: ReactChildren.count,
-	    toArray: ReactChildren.toArray,
-	    only: onlyChild
-	  },
-
-	  Component: ReactComponent,
-
-	  createElement: createElement,
-	  cloneElement: cloneElement,
-	  isValidElement: ReactElement.isValidElement,
-
-	  // Classic
-
-	  PropTypes: ReactPropTypes,
-	  createClass: ReactClass.createClass,
-	  createFactory: createFactory,
-	  createMixin: function (mixin) {
-	    // Currently a noop. Will be used to validate and trace mixins.
-	    return mixin;
-	  },
-
-	  // This looks DOM specific but these are actually isomorphic helpers
-	  // since they are just generating DOM strings.
-	  DOM: ReactDOMFactories,
-
-	  version: ReactVersion,
-
-	  // Hook for JSX spread, don't use this for anything else.
-	  __spread: assign
-	};
-
-	module.exports = React;
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
-
-/***/ },
-/* 165 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/* WEBPACK VAR INJECTION */(function(process) {/**
-	 * Copyright 2013-2015, Facebook, Inc.
-	 * All rights reserved.
-	 *
-	 * This source code is licensed under the BSD-style license found in the
-	 * LICENSE file in the root directory of this source tree. An additional grant
-	 * of patent rights can be found in the PATENTS file in the same directory.
-	 *
-	 * @providesModule ReactDOMFactories
-	 * @typechecks static-only
-	 */
-
-	'use strict';
-
-	var ReactElement = __webpack_require__(51);
-	var ReactElementValidator = __webpack_require__(166);
-
-	var mapObject = __webpack_require__(167);
-
-	/**
-	 * Create a factory that creates HTML tag elements.
-	 *
-	 * @param {string} tag Tag name (e.g. `div`).
-	 * @private
-	 */
-	function createDOMFactory(tag) {
-	  if (process.env.NODE_ENV !== 'production') {
-	    return ReactElementValidator.createFactory(tag);
-	  }
-	  return ReactElement.createFactory(tag);
-	}
-
-	/**
-	 * Creates a mapping from supported HTML tags to `ReactDOMComponent` classes.
-	 * This is also accessible via `React.DOM`.
-	 *
-	 * @public
-	 */
-	var ReactDOMFactories = mapObject({
-	  a: 'a',
-	  abbr: 'abbr',
-	  address: 'address',
-	  area: 'area',
-	  article: 'article',
-	  aside: 'aside',
-	  audio: 'audio',
-	  b: 'b',
-	  base: 'base',
-	  bdi: 'bdi',
-	  bdo: 'bdo',
-	  big: 'big',
-	  blockquote: 'blockquote',
-	  body: 'body',
-	  br: 'br',
-	  button: 'button',
-	  canvas: 'canvas',
-	  caption: 'caption',
-	  cite: 'cite',
-	  code: 'code',
-	  col: 'col',
-	  colgroup: 'colgroup',
-	  data: 'data',
-	  datalist: 'datalist',
-	  dd: 'dd',
-	  del: 'del',
-	  details: 'details',
-	  dfn: 'dfn',
-	  dialog: 'dialog',
-	  div: 'div',
-	  dl: 'dl',
-	  dt: 'dt',
-	  em: 'em',
-	  embed: 'embed',
-	  fieldset: 'fieldset',
-	  figcaption: 'figcaption',
-	  figure: 'figure',
-	  footer: 'footer',
-	  form: 'form',
-	  h1: 'h1',
-	  h2: 'h2',
-	  h3: 'h3',
-	  h4: 'h4',
-	  h5: 'h5',
-	  h6: 'h6',
-	  head: 'head',
-	  header: 'header',
-	  hgroup: 'hgroup',
-	  hr: 'hr',
-	  html: 'html',
-	  i: 'i',
-	  iframe: 'iframe',
-	  img: 'img',
-	  input: 'input',
-	  ins: 'ins',
-	  kbd: 'kbd',
-	  keygen: 'keygen',
-	  label: 'label',
-	  legend: 'legend',
-	  li: 'li',
-	  link: 'link',
-	  main: 'main',
-	  map: 'map',
-	  mark: 'mark',
-	  menu: 'menu',
-	  menuitem: 'menuitem',
-	  meta: 'meta',
-	  meter: 'meter',
-	  nav: 'nav',
-	  noscript: 'noscript',
-	  object: 'object',
-	  ol: 'ol',
-	  optgroup: 'optgroup',
-	  option: 'option',
-	  output: 'output',
-	  p: 'p',
-	  param: 'param',
-	  picture: 'picture',
-	  pre: 'pre',
-	  progress: 'progress',
-	  q: 'q',
-	  rp: 'rp',
-	  rt: 'rt',
-	  ruby: 'ruby',
-	  s: 's',
-	  samp: 'samp',
-	  script: 'script',
-	  section: 'section',
-	  select: 'select',
-	  small: 'small',
-	  source: 'source',
-	  span: 'span',
-	  strong: 'strong',
-	  style: 'style',
-	  sub: 'sub',
-	  summary: 'summary',
-	  sup: 'sup',
-	  table: 'table',
-	  tbody: 'tbody',
-	  td: 'td',
-	  textarea: 'textarea',
-	  tfoot: 'tfoot',
-	  th: 'th',
-	  thead: 'thead',
-	  time: 'time',
-	  title: 'title',
-	  tr: 'tr',
-	  track: 'track',
-	  u: 'u',
-	  ul: 'ul',
-	  'var': 'var',
-	  video: 'video',
-	  wbr: 'wbr',
-
-	  // SVG
-	  circle: 'circle',
-	  clipPath: 'clipPath',
-	  defs: 'defs',
-	  ellipse: 'ellipse',
-	  g: 'g',
-	  image: 'image',
-	  line: 'line',
-	  linearGradient: 'linearGradient',
-	  mask: 'mask',
-	  path: 'path',
-	  pattern: 'pattern',
-	  polygon: 'polygon',
-	  polyline: 'polyline',
-	  radialGradient: 'radialGradient',
-	  rect: 'rect',
-	  stop: 'stop',
-	  svg: 'svg',
-	  text: 'text',
-	  tspan: 'tspan'
-
-	}, createDOMFactory);
-
-	module.exports = ReactDOMFactories;
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
-
-/***/ },
-/* 166 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/* WEBPACK VAR INJECTION */(function(process) {/**
-	 * Copyright 2014-2015, Facebook, Inc.
-	 * All rights reserved.
-	 *
-	 * This source code is licensed under the BSD-style license found in the
-	 * LICENSE file in the root directory of this source tree. An additional grant
-	 * of patent rights can be found in the PATENTS file in the same directory.
-	 *
-	 * @providesModule ReactElementValidator
-	 */
-
-	/**
-	 * ReactElementValidator provides a wrapper around a element factory
-	 * which validates the props passed to the element. This is intended to be
-	 * used only in DEV and could be replaced by a static type checker for languages
-	 * that support it.
-	 */
-
-	'use strict';
-
-	var ReactElement = __webpack_require__(51);
-	var ReactPropTypeLocations = __webpack_require__(74);
-	var ReactPropTypeLocationNames = __webpack_require__(75);
-	var ReactCurrentOwner = __webpack_require__(14);
-
-	var canDefineProperty = __webpack_require__(52);
-	var getIteratorFn = __webpack_require__(117);
-	var invariant = __webpack_require__(22);
-	var warning = __webpack_require__(34);
-
-	function getDeclarationErrorAddendum() {
-	  if (ReactCurrentOwner.current) {
-	    var name = ReactCurrentOwner.current.getName();
-	    if (name) {
-	      return ' Check the render method of `' + name + '`.';
-	    }
-	  }
-	  return '';
-	}
-
-	/**
-	 * Warn if there's no key explicitly set on dynamic arrays of children or
-	 * object keys are not valid. This allows us to keep track of children between
-	 * updates.
-	 */
-	var ownerHasKeyUseWarning = {};
-
-	var loggedTypeFailures = {};
-
-	/**
-	 * Warn if the element doesn't have an explicit key assigned to it.
-	 * This element is in an array. The array could grow and shrink or be
-	 * reordered. All children that haven't already been validated are required to
-	 * have a "key" property assigned to it.
-	 *
-	 * @internal
-	 * @param {ReactElement} element Element that requires a key.
-	 * @param {*} parentType element's parent's type.
-	 */
-	function validateExplicitKey(element, parentType) {
-	  if (!element._store || element._store.validated || element.key != null) {
-	    return;
-	  }
-	  element._store.validated = true;
-
-	  var addenda = getAddendaForKeyUse('uniqueKey', element, parentType);
-	  if (addenda === null) {
-	    // we already showed the warning
-	    return;
-	  }
-	  process.env.NODE_ENV !== 'production' ? warning(false, 'Each child in an array or iterator should have a unique "key" prop.' + '%s%s%s', addenda.parentOrOwner || '', addenda.childOwner || '', addenda.url || '') : undefined;
-	}
-
-	/**
-	 * Shared warning and monitoring code for the key warnings.
-	 *
-	 * @internal
-	 * @param {string} messageType A key used for de-duping warnings.
-	 * @param {ReactElement} element Component that requires a key.
-	 * @param {*} parentType element's parent's type.
-	 * @returns {?object} A set of addenda to use in the warning message, or null
-	 * if the warning has already been shown before (and shouldn't be shown again).
-	 */
-	function getAddendaForKeyUse(messageType, element, parentType) {
-	  var addendum = getDeclarationErrorAddendum();
-	  if (!addendum) {
-	    var parentName = typeof parentType === 'string' ? parentType : parentType.displayName || parentType.name;
-	    if (parentName) {
-	      addendum = ' Check the top-level render call using <' + parentName + '>.';
-	    }
-	  }
-
-	  var memoizer = ownerHasKeyUseWarning[messageType] || (ownerHasKeyUseWarning[messageType] = {});
-	  if (memoizer[addendum]) {
-	    return null;
-	  }
-	  memoizer[addendum] = true;
-
-	  var addenda = {
-	    parentOrOwner: addendum,
-	    url: ' See https://fb.me/react-warning-keys for more information.',
-	    childOwner: null
-	  };
-
-	  // Usually the current owner is the offender, but if it accepts children as a
-	  // property, it may be the creator of the child that's responsible for
-	  // assigning it a key.
-	  if (element && element._owner && element._owner !== ReactCurrentOwner.current) {
-	    // Give the component that originally created this child.
-	    addenda.childOwner = ' It was passed a child from ' + element._owner.getName() + '.';
-	  }
-
-	  return addenda;
-	}
-
-	/**
-	 * Ensure that every element either is passed in a static location, in an
-	 * array with an explicit keys property defined, or in an object literal
-	 * with valid key property.
-	 *
-	 * @internal
-	 * @param {ReactNode} node Statically passed child of any type.
-	 * @param {*} parentType node's parent's type.
-	 */
-	function validateChildKeys(node, parentType) {
-	  if (typeof node !== 'object') {
-	    return;
-	  }
-	  if (Array.isArray(node)) {
-	    for (var i = 0; i < node.length; i++) {
-	      var child = node[i];
-	      if (ReactElement.isValidElement(child)) {
-	        validateExplicitKey(child, parentType);
-	      }
-	    }
-	  } else if (ReactElement.isValidElement(node)) {
-	    // This element was passed in a valid location.
-	    if (node._store) {
-	      node._store.validated = true;
-	    }
-	  } else if (node) {
-	    var iteratorFn = getIteratorFn(node);
-	    // Entry iterators provide implicit keys.
-	    if (iteratorFn) {
-	      if (iteratorFn !== node.entries) {
-	        var iterator = iteratorFn.call(node);
-	        var step;
-	        while (!(step = iterator.next()).done) {
-	          if (ReactElement.isValidElement(step.value)) {
-	            validateExplicitKey(step.value, parentType);
-	          }
-	        }
-	      }
-	    }
-	  }
-	}
-
-	/**
-	 * Assert that the props are valid
-	 *
-	 * @param {string} componentName Name of the component for error messages.
-	 * @param {object} propTypes Map of prop name to a ReactPropType
-	 * @param {object} props
-	 * @param {string} location e.g. "prop", "context", "child context"
-	 * @private
-	 */
-	function checkPropTypes(componentName, propTypes, props, location) {
-	  for (var propName in propTypes) {
-	    if (propTypes.hasOwnProperty(propName)) {
-	      var error;
-	      // Prop type validation may throw. In case they do, we don't want to
-	      // fail the render phase where it didn't fail before. So we log it.
-	      // After these have been cleaned up, we'll let them throw.
-	      try {
-	        // This is intentionally an invariant that gets caught. It's the same
-	        // behavior as without this statement except with a better message.
-	        !(typeof propTypes[propName] === 'function') ? process.env.NODE_ENV !== 'production' ? invariant(false, '%s: %s type `%s` is invalid; it must be a function, usually from ' + 'React.PropTypes.', componentName || 'React class', ReactPropTypeLocationNames[location], propName) : invariant(false) : undefined;
-	        error = propTypes[propName](props, propName, componentName, location);
-	      } catch (ex) {
-	        error = ex;
-	      }
-	      process.env.NODE_ENV !== 'production' ? warning(!error || error instanceof Error, '%s: type specification of %s `%s` is invalid; the type checker ' + 'function must return `null` or an `Error` but returned a %s. ' + 'You may have forgotten to pass an argument to the type checker ' + 'creator (arrayOf, instanceOf, objectOf, oneOf, oneOfType, and ' + 'shape all require an argument).', componentName || 'React class', ReactPropTypeLocationNames[location], propName, typeof error) : undefined;
-	      if (error instanceof Error && !(error.message in loggedTypeFailures)) {
-	        // Only monitor this failure once because there tends to be a lot of the
-	        // same error.
-	        loggedTypeFailures[error.message] = true;
-
-	        var addendum = getDeclarationErrorAddendum();
-	        process.env.NODE_ENV !== 'production' ? warning(false, 'Failed propType: %s%s', error.message, addendum) : undefined;
-	      }
-	    }
-	  }
-	}
-
-	/**
-	 * Given an element, validate that its props follow the propTypes definition,
-	 * provided by the type.
-	 *
-	 * @param {ReactElement} element
-	 */
-	function validatePropTypes(element) {
-	  var componentClass = element.type;
-	  if (typeof componentClass !== 'function') {
-	    return;
-	  }
-	  var name = componentClass.displayName || componentClass.name;
-	  if (componentClass.propTypes) {
-	    checkPropTypes(name, componentClass.propTypes, element.props, ReactPropTypeLocations.prop);
-	  }
-	  if (typeof componentClass.getDefaultProps === 'function') {
-	    process.env.NODE_ENV !== 'production' ? warning(componentClass.getDefaultProps.isReactClassApproved, 'getDefaultProps is only used on classic React.createClass ' + 'definitions. Use a static property named `defaultProps` instead.') : undefined;
-	  }
-	}
-
-	var ReactElementValidator = {
-
-	  createElement: function (type, props, children) {
-	    var validType = typeof type === 'string' || typeof type === 'function';
-	    // We warn in this case but don't throw. We expect the element creation to
-	    // succeed and there will likely be errors in render.
-	    process.env.NODE_ENV !== 'production' ? warning(validType, 'React.createElement: type should not be null, undefined, boolean, or ' + 'number. It should be a string (for DOM elements) or a ReactClass ' + '(for composite components).%s', getDeclarationErrorAddendum()) : undefined;
-
-	    var element = ReactElement.createElement.apply(this, arguments);
-
-	    // The result can be nullish if a mock or a custom function is used.
-	    // TODO: Drop this when these are no longer allowed as the type argument.
-	    if (element == null) {
-	      return element;
-	    }
-
-	    // Skip key warning if the type isn't valid since our key validation logic
-	    // doesn't expect a non-string/function type and can throw confusing errors.
-	    // We don't want exception behavior to differ between dev and prod.
-	    // (Rendering will throw with a helpful message and as soon as the type is
-	    // fixed, the key warnings will appear.)
-	    if (validType) {
-	      for (var i = 2; i < arguments.length; i++) {
-	        validateChildKeys(arguments[i], type);
-	      }
-	    }
-
-	    validatePropTypes(element);
-
-	    return element;
-	  },
-
-	  createFactory: function (type) {
-	    var validatedFactory = ReactElementValidator.createElement.bind(null, type);
-	    // Legacy hook TODO: Warn if this is accessed
-	    validatedFactory.type = type;
-
-	    if (process.env.NODE_ENV !== 'production') {
-	      if (canDefineProperty) {
-	        Object.defineProperty(validatedFactory, 'type', {
-	          enumerable: false,
-	          get: function () {
-	            process.env.NODE_ENV !== 'production' ? warning(false, 'Factory.type is deprecated. Access the class directly ' + 'before passing it to createFactory.') : undefined;
-	            Object.defineProperty(this, 'type', {
-	              value: type
-	            });
-	            return type;
-	          }
-	        });
-	      }
-	    }
-
-	    return validatedFactory;
-	  },
-
-	  cloneElement: function (element, props, children) {
-	    var newElement = ReactElement.cloneElement.apply(this, arguments);
-	    for (var i = 2; i < arguments.length; i++) {
-	      validateChildKeys(arguments[i], newElement.type);
-	    }
-	    validatePropTypes(newElement);
-	    return newElement;
-	  }
-
-	};
-
-	module.exports = ReactElementValidator;
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
-
-/***/ },
-/* 167 */
-/***/ function(module, exports) {
-
-	/**
-	 * Copyright 2013-2015, Facebook, Inc.
-	 * All rights reserved.
-	 *
-	 * This source code is licensed under the BSD-style license found in the
-	 * LICENSE file in the root directory of this source tree. An additional grant
-	 * of patent rights can be found in the PATENTS file in the same directory.
-	 *
-	 * @providesModule mapObject
-	 */
-
-	'use strict';
-
-	var hasOwnProperty = Object.prototype.hasOwnProperty;
-
-	/**
-	 * Executes the provided `callback` once for each enumerable own property in the
-	 * object and constructs a new object from the results. The `callback` is
-	 * invoked with three arguments:
-	 *
-	 *  - the property value
-	 *  - the property name
-	 *  - the object being traversed
-	 *
-	 * Properties that are added after the call to `mapObject` will not be visited
-	 * by `callback`. If the values of existing properties are changed, the value
-	 * passed to `callback` will be the value at the time `mapObject` visits them.
-	 * Properties that are deleted before being visited are not visited.
-	 *
-	 * @grep function objectMap()
-	 * @grep function objMap()
-	 *
-	 * @param {?object} object
-	 * @param {function} callback
-	 * @param {*} context
-	 * @return {?object}
-	 */
-	function mapObject(object, callback, context) {
-	  if (!object) {
-	    return null;
-	  }
-	  var result = {};
-	  for (var name in object) {
-	    if (hasOwnProperty.call(object, name)) {
-	      result[name] = callback.call(context, object[name], name, object);
-	    }
-	  }
-	  return result;
-	}
-
-	module.exports = mapObject;
-
-/***/ },
-/* 168 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/* WEBPACK VAR INJECTION */(function(process) {/**
-	 * Copyright 2013-2015, Facebook, Inc.
-	 * All rights reserved.
-	 *
-	 * This source code is licensed under the BSD-style license found in the
-	 * LICENSE file in the root directory of this source tree. An additional grant
-	 * of patent rights can be found in the PATENTS file in the same directory.
-	 *
-	 * @providesModule onlyChild
-	 */
-	'use strict';
-
-	var ReactElement = __webpack_require__(51);
-
-	var invariant = __webpack_require__(22);
-
-	/**
-	 * Returns the first child in a collection of children and verifies that there
-	 * is only one child in the collection. The current implementation of this
-	 * function assumes that a single child gets passed without a wrapper, but the
-	 * purpose of this helper function is to abstract away the particular structure
-	 * of children.
-	 *
-	 * @param {?object} children Child collection structure.
-	 * @return {ReactComponent} The first and only `ReactComponent` contained in the
-	 * structure.
-	 */
-	function onlyChild(children) {
-	  !ReactElement.isValidElement(children) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'onlyChild must be passed a children with exactly one child.') : invariant(false) : undefined;
-	  return children;
-	}
-
-	module.exports = onlyChild;
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
-
-/***/ },
-/* 169 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/* WEBPACK VAR INJECTION */(function(process) {/**
-	 * Copyright 2013-2015, Facebook, Inc.
-	 * All rights reserved.
-	 *
-	 * This source code is licensed under the BSD-style license found in the
-	 * LICENSE file in the root directory of this source tree. An additional grant
-	 * of patent rights can be found in the PATENTS file in the same directory.
-	 *
-	 * @providesModule deprecated
-	 */
-
-	'use strict';
-
-	var assign = __webpack_require__(48);
-	var warning = __webpack_require__(34);
-
-	/**
-	 * This will log a single deprecation notice per function and forward the call
-	 * on to the new API.
-	 *
-	 * @param {string} fnName The name of the function
-	 * @param {string} newModule The module that fn will exist in
-	 * @param {string} newPackage The module that fn will exist in
-	 * @param {*} ctx The context this forwarded call should run in
-	 * @param {function} fn The function to forward on to
-	 * @return {function} The function that will warn once and then call fn
-	 */
-	function deprecated(fnName, newModule, newPackage, ctx, fn) {
-	  var warned = false;
-	  if (process.env.NODE_ENV !== 'production') {
-	    var newFn = function () {
-	      process.env.NODE_ENV !== 'production' ? warning(warned,
-	      // Require examples in this string must be split to prevent React's
-	      // build tools from mistaking them for real requires.
-	      // Otherwise the build tools will attempt to build a '%s' module.
-	      'React.%s is deprecated. Please use %s.%s from require' + '(\'%s\') ' + 'instead.', fnName, newModule, fnName, newPackage) : undefined;
-	      warned = true;
-	      return fn.apply(ctx, arguments);
-	    };
-	    // We need to make sure all properties of the original fn are copied over.
-	    // In particular, this is needed to support PropTypes
-	    return assign(newFn, fn);
-	  }
-
-	  return fn;
-	}
-
-	module.exports = deprecated;
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
-
-/***/ },
-/* 170 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var Rx, gameUi, updateGameState, DIFFICULTIES, DEFAULT_DIFFICULTY, playerRevealsField, playerTogglesField, playerChangesDifficulty, playerChangesBoard, playerResetsGame, gameIsFinished, revealField, toggleField, changeBoard, resetGame, maybeFinishGame, gameInteractions, observeDifficulty, rememberBoardSize, gameStarts, observeGame;
-	Rx = __webpack_require__(171);
-	gameUi = __webpack_require__(157);
-	updateGameState = __webpack_require__(1).updateGameState;
-	DIFFICULTIES = {
-	  easy: [10, 10, 9],
-	  medium: [16, 16, 40],
-	  hard: [30, 20, 99]
-	};
-	DEFAULT_DIFFICULTY = DIFFICULTIES.medium;
-	playerRevealsField = new Rx.Subject;
-	playerTogglesField = new Rx.Subject;
-	playerChangesDifficulty = new Rx.Subject;
-	playerChangesBoard = new Rx.Subject;
-	playerResetsGame = new Rx.Subject;
-	gameIsFinished = new Rx.Subject;
-	revealField = function(id){
-	  return playerRevealsField.onNext(['reveal-field', id]);
-	};
-	toggleField = function(id){
-	  return playerTogglesField.onNext(['toggle-field-flag', id]);
-	};
-	changeBoard = function(difficulty, boardSize){
-	  var size;
-	  size = boardSize || DIFFICULTIES[difficulty];
-	  playerChangesDifficulty.onNext(difficulty);
-	  return playerChangesBoard.onNext(['reset-game', size]);
-	};
-	resetGame = function(){
-	  return playerResetsGame.onNext(['reset-game']);
-	};
-	maybeFinishGame = function(state){
-	  if (state.get('game-won') || state.get('game-lost')) {
-	    return gameIsFinished.onNext(true);
-	  }
-	};
-	gameInteractions = function(it){
-	  var interactions, timeIncrements;
-	  interactions = Rx.Observable.merge([playerRevealsField, playerTogglesField]);
-	  timeIncrements = interactions.first().flatMap(function(){
-	    return Rx.Observable.interval(1000).map(function(){
-	      return ['increment-time'];
-	    });
-	  });
-	  return Rx.Observable.merge([Rx.Observable['return'](it), interactions, timeIncrements]).takeUntil(gameIsFinished);
-	};
-	observeDifficulty = playerChangesDifficulty.startWith('medium');
-	rememberBoardSize = function(arg$, arg1$){
-	  var _, prevValue, action, value;
-	  _ = arg$[0], prevValue = arg$[1];
-	  action = arg1$[0], value = arg1$[1];
-	  return [action, value || prevValue];
-	};
-	gameStarts = Rx.Observable.merge([playerChangesBoard, playerResetsGame]).scan(rememberBoardSize, [0, DEFAULT_DIFFICULTY])['do'](function(){
-	  return gameIsFinished.onNext(true);
-	});
-	observeGame = gameStarts.flatMap(gameInteractions).scan(updateGameState, 0)['do'](maybeFinishGame).combineLatest(observeDifficulty, function(world, difficulty){
-	  return {
-	    world: world,
-	    difficulty: difficulty
-	  };
-	});
-	module.exports = {
-	  observeGame: observeGame,
-	  resetGame: resetGame,
-	  changeBoard: changeBoard,
-	  revealField: revealField,
-	  toggleField: toggleField
-	};
-	//# sourceMappingURL=C:\Users\Florian\Desktop\work\minekeepr2\node_modules\livescript-loader\index.js!C:\Users\Florian\Desktop\work\minekeepr2\src\minesweeper-behaviour.ls.map
-
-
-/***/ },
-/* 171 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_RESULT__;/* WEBPACK VAR INJECTION */(function(module, global, process) {// Copyright (c) Microsoft, All rights reserved. See License.txt in the project root for license information.
@@ -55270,6 +54106,1190 @@
 	}.call(this));
 
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(4)(module), (function() { return this; }()), __webpack_require__(13)))
+
+/***/ },
+/* 159 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var react, ref$, div, h1, a, input, cancelContextMenu, field, board, boardSizePanel;
+	react = __webpack_require__(160);
+	ref$ = react.DOM, div = ref$.div, h1 = ref$.h1, a = ref$.a, input = ref$.input;
+	cancelContextMenu = curry$(function(fn, e){
+	  e.preventDefault();
+	  return fn();
+	});
+	field = function(arg$){
+	  var id, field, gameLost, revealField, toggleField, surroundingBombsCount, className, value;
+	  id = arg$.id, field = arg$.field, gameLost = arg$.gameLost, revealField = arg$.revealField, toggleField = arg$.toggleField;
+	  if (!field.get('is-bomb') && field.get('is-revealed')) {
+	    surroundingBombsCount = field.get('surrounding-bombs-count');
+	    className = "cell revealed value-" + surroundingBombsCount;
+	    value = surroundingBombsCount > 0 && surroundingBombsCount || " ";
+	  } else if (field.get('is-flagged')) {
+	    className = "cell flagged";
+	    value = '\u2691';
+	  } else if (gameLost && field.get('is-bomb')) {
+	    className = "cell bomb";
+	    value = "\uD83D\uDCA3";
+	  } else {
+	    className = "cell";
+	    value = '-';
+	  }
+	  return div({
+	    className: className,
+	    onClick: function(){
+	      return revealField(id);
+	    },
+	    onContextMenu: cancelContextMenu(function(){
+	      return toggleField(id);
+	    })
+	  }, value);
+	};
+	board = function(arg$){
+	  var world, revealField, toggleField, y, x, id;
+	  world = arg$.world, revealField = arg$.revealField, toggleField = arg$.toggleField;
+	  return div({
+	    className: 'board',
+	    id: 'board'
+	  }, (function(){
+	    var i$, to$, results$ = [];
+	    for (i$ = 0, to$ = world.get('board-height'); i$ < to$; ++i$) {
+	      y = i$;
+	      results$.push(div({
+	        className: 'row',
+	        key: "row-" + y
+	      }, (fn$())));
+	    }
+	    return results$;
+	    function fn$(){
+	      var i$, to$, results$ = [];
+	      for (i$ = 0, to$ = world.get('board-width'); i$ < to$; ++i$) {
+	        x = i$;
+	        id = y * world.get('board-width') + x;
+	        results$.push(field({
+	          id: id,
+	          gameLost: world.get('game-lost'),
+	          field: world.get('fields').get(id),
+	          revealField: revealField,
+	          toggleField: toggleField
+	        }));
+	      }
+	      return results$;
+	    }
+	  }()));
+	};
+	boardSizePanel = function(arg$){
+	  var width, height, bombsCount, changeBoard;
+	  width = arg$.width, height = arg$.height, bombsCount = arg$.bombsCount, changeBoard = arg$.changeBoard;
+	  return div({
+	    className: 'board-size-panel'
+	  }, div({
+	    style: {
+	      flex: 1
+	    }
+	  }, a({}, "\u2191 " + height), input({
+	    type: 'range',
+	    value: height,
+	    min: 9,
+	    max: 40,
+	    onChange: function(e){
+	      var bombsPercentage, newBombsCount;
+	      bombsPercentage = 100 / (width * height) * bombsCount;
+	      newBombsCount = width * +e.target.value / 100 * bombsPercentage;
+	      return changeBoard('custom', [width, +e.target.value, newBombsCount]);
+	    }
+	  })), div({
+	    style: {
+	      flex: 1
+	    }
+	  }, a({}, "\u2192 " + width), input({
+	    type: 'range',
+	    value: width,
+	    min: 9,
+	    max: 70,
+	    onChange: function(e){
+	      var bombsPercentage, newBombsCount;
+	      bombsPercentage = 100 / (width * height) * bombsCount;
+	      newBombsCount = height * +e.target.value / 100 * bombsPercentage;
+	      return changeBoard('custom', [+e.target.value, height, newBombsCount]);
+	    }
+	  })), div({
+	    style: {
+	      flex: 1
+	    }
+	  }, a({}, "\uD83D\uDCA3 " + Math.floor(bombsCount)), input({
+	    type: 'range',
+	    value: bombsCount,
+	    min: 9,
+	    max: Math.min(width * height / 4),
+	    onChange: function(e){
+	      return changeBoard('custom', [width, height, +e.target.value]);
+	    }
+	  })));
+	};
+	module.exports = function(arg$){
+	  var world, difficulty, changeBoard, resetGame, revealField, toggleField, size, ref$, width, height, bombsCount, gameState;
+	  world = arg$.world, difficulty = arg$.difficulty, changeBoard = arg$.changeBoard, resetGame = arg$.resetGame, revealField = arg$.revealField, toggleField = arg$.toggleField;
+	  ref$ = size = [world.get('board-width'), world.get('board-height'), world.get('bombs-count')], width = ref$[0], height = ref$[1], bombsCount = ref$[2];
+	  gameState = world.get('game-lost')
+	    ? 'game-lost'
+	    : world.get('game-won') ? 'game-won' : "";
+	  return div({}, h1({}, "Minesweeper"), div({
+	    className: 'board-settings'
+	  }, a({
+	    className: difficulty === 'easy' ? "active" : void 8,
+	    onClick: function(){
+	      return changeBoard('easy');
+	    }
+	  }, 'easy'), a({
+	    className: difficulty === 'medium' ? "active" : void 8,
+	    onClick: function(){
+	      return changeBoard('medium');
+	    }
+	  }, 'medium'), a({
+	    className: difficulty === 'hard' ? "active" : void 8,
+	    onClick: function(){
+	      return changeBoard('hard');
+	    }
+	  }, 'hard'), a({
+	    className: difficulty === 'custom' ? "active" : void 8,
+	    onClick: function(){
+	      return changeBoard('custom', size);
+	    }
+	  }, 'custom')), difficulty === 'custom' ? boardSizePanel({
+	    width: width,
+	    height: height,
+	    bombsCount: bombsCount,
+	    changeBoard: changeBoard
+	  }) : void 8, div({
+	    className: 'board-info'
+	  }, div({
+	    style: {
+	      flex: "1"
+	    }
+	  }, "\uD83D\uDCA3 " + (world.get('bombs-count') - world.get('fields-flagged'))), a({
+	    className: "reset-game " + gameState,
+	    onClick: resetGame
+	  }, div({
+	    className: 'smiley'
+	  }, '\u263A'), div({}, 'reset')), div({
+	    style: {
+	      flex: "1"
+	    }
+	  }, world.get('time-elapsed') + " \uD83D\uDD64")), board({
+	    world: world,
+	    revealField: revealField,
+	    toggleField: toggleField
+	  }));
+	};
+	function curry$(f, bound){
+	  var context,
+	  _curry = function(args) {
+	    return f.length > 1 ? function(){
+	      var params = args ? args.concat() : [];
+	      context = bound ? context || this : this;
+	      return params.push.apply(params, arguments) <
+	          f.length && arguments.length ?
+	        _curry.call(context, params) : f.apply(context, params);
+	    } : f;
+	  };
+	  return _curry();
+	}
+	//# sourceMappingURL=c:\Users\Florian\Desktop\work\minekeepr2\node_modules\livescript-loader\index.js!c:\Users\Florian\Desktop\work\minekeepr2\src\minesweeper-ui.ls.map
+
+
+/***/ },
+/* 160 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	module.exports = __webpack_require__(161);
+
+
+/***/ },
+/* 161 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/**
+	 * Copyright 2013-2015, Facebook, Inc.
+	 * All rights reserved.
+	 *
+	 * This source code is licensed under the BSD-style license found in the
+	 * LICENSE file in the root directory of this source tree. An additional grant
+	 * of patent rights can be found in the PATENTS file in the same directory.
+	 *
+	 * @providesModule React
+	 */
+
+	'use strict';
+
+	var ReactDOM = __webpack_require__(12);
+	var ReactDOMServer = __webpack_require__(162);
+	var ReactIsomorphic = __webpack_require__(166);
+
+	var assign = __webpack_require__(48);
+	var deprecated = __webpack_require__(171);
+
+	// `version` will be added here by ReactIsomorphic.
+	var React = {};
+
+	assign(React, ReactIsomorphic);
+
+	assign(React, {
+	  // ReactDOM
+	  findDOMNode: deprecated('findDOMNode', 'ReactDOM', 'react-dom', ReactDOM, ReactDOM.findDOMNode),
+	  render: deprecated('render', 'ReactDOM', 'react-dom', ReactDOM, ReactDOM.render),
+	  unmountComponentAtNode: deprecated('unmountComponentAtNode', 'ReactDOM', 'react-dom', ReactDOM, ReactDOM.unmountComponentAtNode),
+
+	  // ReactDOMServer
+	  renderToString: deprecated('renderToString', 'ReactDOMServer', 'react-dom/server', ReactDOMServer, ReactDOMServer.renderToString),
+	  renderToStaticMarkup: deprecated('renderToStaticMarkup', 'ReactDOMServer', 'react-dom/server', ReactDOMServer, ReactDOMServer.renderToStaticMarkup)
+	});
+
+	React.__SECRET_DOM_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactDOM;
+	React.__SECRET_DOM_SERVER_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactDOMServer;
+
+	module.exports = React;
+
+/***/ },
+/* 162 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/**
+	 * Copyright 2013-2015, Facebook, Inc.
+	 * All rights reserved.
+	 *
+	 * This source code is licensed under the BSD-style license found in the
+	 * LICENSE file in the root directory of this source tree. An additional grant
+	 * of patent rights can be found in the PATENTS file in the same directory.
+	 *
+	 * @providesModule ReactDOMServer
+	 */
+
+	'use strict';
+
+	var ReactDefaultInjection = __webpack_require__(80);
+	var ReactServerRendering = __webpack_require__(163);
+	var ReactVersion = __webpack_require__(155);
+
+	ReactDefaultInjection.inject();
+
+	var ReactDOMServer = {
+	  renderToString: ReactServerRendering.renderToString,
+	  renderToStaticMarkup: ReactServerRendering.renderToStaticMarkup,
+	  version: ReactVersion
+	};
+
+	module.exports = ReactDOMServer;
+
+/***/ },
+/* 163 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* WEBPACK VAR INJECTION */(function(process) {/**
+	 * Copyright 2013-2015, Facebook, Inc.
+	 * All rights reserved.
+	 *
+	 * This source code is licensed under the BSD-style license found in the
+	 * LICENSE file in the root directory of this source tree. An additional grant
+	 * of patent rights can be found in the PATENTS file in the same directory.
+	 *
+	 * @typechecks static-only
+	 * @providesModule ReactServerRendering
+	 */
+	'use strict';
+
+	var ReactDefaultBatchingStrategy = __webpack_require__(101);
+	var ReactElement = __webpack_require__(51);
+	var ReactInstanceHandles = __webpack_require__(54);
+	var ReactMarkupChecksum = __webpack_require__(57);
+	var ReactServerBatchingStrategy = __webpack_require__(164);
+	var ReactServerRenderingTransaction = __webpack_require__(165);
+	var ReactUpdates = __webpack_require__(63);
+
+	var emptyObject = __webpack_require__(67);
+	var instantiateReactComponent = __webpack_require__(71);
+	var invariant = __webpack_require__(22);
+
+	/**
+	 * @param {ReactElement} element
+	 * @return {string} the HTML markup
+	 */
+	function renderToString(element) {
+	  !ReactElement.isValidElement(element) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'renderToString(): You must pass a valid ReactElement.') : invariant(false) : undefined;
+
+	  var transaction;
+	  try {
+	    ReactUpdates.injection.injectBatchingStrategy(ReactServerBatchingStrategy);
+
+	    var id = ReactInstanceHandles.createReactRootID();
+	    transaction = ReactServerRenderingTransaction.getPooled(false);
+
+	    return transaction.perform(function () {
+	      var componentInstance = instantiateReactComponent(element, null);
+	      var markup = componentInstance.mountComponent(id, transaction, emptyObject);
+	      return ReactMarkupChecksum.addChecksumToMarkup(markup);
+	    }, null);
+	  } finally {
+	    ReactServerRenderingTransaction.release(transaction);
+	    // Revert to the DOM batching strategy since these two renderers
+	    // currently share these stateful modules.
+	    ReactUpdates.injection.injectBatchingStrategy(ReactDefaultBatchingStrategy);
+	  }
+	}
+
+	/**
+	 * @param {ReactElement} element
+	 * @return {string} the HTML markup, without the extra React ID and checksum
+	 * (for generating static pages)
+	 */
+	function renderToStaticMarkup(element) {
+	  !ReactElement.isValidElement(element) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'renderToStaticMarkup(): You must pass a valid ReactElement.') : invariant(false) : undefined;
+
+	  var transaction;
+	  try {
+	    ReactUpdates.injection.injectBatchingStrategy(ReactServerBatchingStrategy);
+
+	    var id = ReactInstanceHandles.createReactRootID();
+	    transaction = ReactServerRenderingTransaction.getPooled(true);
+
+	    return transaction.perform(function () {
+	      var componentInstance = instantiateReactComponent(element, null);
+	      return componentInstance.mountComponent(id, transaction, emptyObject);
+	    }, null);
+	  } finally {
+	    ReactServerRenderingTransaction.release(transaction);
+	    // Revert to the DOM batching strategy since these two renderers
+	    // currently share these stateful modules.
+	    ReactUpdates.injection.injectBatchingStrategy(ReactDefaultBatchingStrategy);
+	  }
+	}
+
+	module.exports = {
+	  renderToString: renderToString,
+	  renderToStaticMarkup: renderToStaticMarkup
+	};
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
+
+/***/ },
+/* 164 */
+/***/ function(module, exports) {
+
+	/**
+	 * Copyright 2014-2015, Facebook, Inc.
+	 * All rights reserved.
+	 *
+	 * This source code is licensed under the BSD-style license found in the
+	 * LICENSE file in the root directory of this source tree. An additional grant
+	 * of patent rights can be found in the PATENTS file in the same directory.
+	 *
+	 * @providesModule ReactServerBatchingStrategy
+	 * @typechecks
+	 */
+
+	'use strict';
+
+	var ReactServerBatchingStrategy = {
+	  isBatchingUpdates: false,
+	  batchedUpdates: function (callback) {
+	    // Don't do anything here. During the server rendering we don't want to
+	    // schedule any updates. We will simply ignore them.
+	  }
+	};
+
+	module.exports = ReactServerBatchingStrategy;
+
+/***/ },
+/* 165 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/**
+	 * Copyright 2014-2015, Facebook, Inc.
+	 * All rights reserved.
+	 *
+	 * This source code is licensed under the BSD-style license found in the
+	 * LICENSE file in the root directory of this source tree. An additional grant
+	 * of patent rights can be found in the PATENTS file in the same directory.
+	 *
+	 * @providesModule ReactServerRenderingTransaction
+	 * @typechecks
+	 */
+
+	'use strict';
+
+	var PooledClass = __webpack_require__(65);
+	var CallbackQueue = __webpack_require__(64);
+	var Transaction = __webpack_require__(66);
+
+	var assign = __webpack_require__(48);
+	var emptyFunction = __webpack_require__(24);
+
+	/**
+	 * Provides a `CallbackQueue` queue for collecting `onDOMReady` callbacks
+	 * during the performing of the transaction.
+	 */
+	var ON_DOM_READY_QUEUEING = {
+	  /**
+	   * Initializes the internal `onDOMReady` queue.
+	   */
+	  initialize: function () {
+	    this.reactMountReady.reset();
+	  },
+
+	  close: emptyFunction
+	};
+
+	/**
+	 * Executed within the scope of the `Transaction` instance. Consider these as
+	 * being member methods, but with an implied ordering while being isolated from
+	 * each other.
+	 */
+	var TRANSACTION_WRAPPERS = [ON_DOM_READY_QUEUEING];
+
+	/**
+	 * @class ReactServerRenderingTransaction
+	 * @param {boolean} renderToStaticMarkup
+	 */
+	function ReactServerRenderingTransaction(renderToStaticMarkup) {
+	  this.reinitializeTransaction();
+	  this.renderToStaticMarkup = renderToStaticMarkup;
+	  this.reactMountReady = CallbackQueue.getPooled(null);
+	  this.useCreateElement = false;
+	}
+
+	var Mixin = {
+	  /**
+	   * @see Transaction
+	   * @abstract
+	   * @final
+	   * @return {array} Empty list of operation wrap procedures.
+	   */
+	  getTransactionWrappers: function () {
+	    return TRANSACTION_WRAPPERS;
+	  },
+
+	  /**
+	   * @return {object} The queue to collect `onDOMReady` callbacks with.
+	   */
+	  getReactMountReady: function () {
+	    return this.reactMountReady;
+	  },
+
+	  /**
+	   * `PooledClass` looks for this, and will invoke this before allowing this
+	   * instance to be reused.
+	   */
+	  destructor: function () {
+	    CallbackQueue.release(this.reactMountReady);
+	    this.reactMountReady = null;
+	  }
+	};
+
+	assign(ReactServerRenderingTransaction.prototype, Transaction.Mixin, Mixin);
+
+	PooledClass.addPoolingTo(ReactServerRenderingTransaction);
+
+	module.exports = ReactServerRenderingTransaction;
+
+/***/ },
+/* 166 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* WEBPACK VAR INJECTION */(function(process) {/**
+	 * Copyright 2013-2015, Facebook, Inc.
+	 * All rights reserved.
+	 *
+	 * This source code is licensed under the BSD-style license found in the
+	 * LICENSE file in the root directory of this source tree. An additional grant
+	 * of patent rights can be found in the PATENTS file in the same directory.
+	 *
+	 * @providesModule ReactIsomorphic
+	 */
+
+	'use strict';
+
+	var ReactChildren = __webpack_require__(119);
+	var ReactComponent = __webpack_require__(132);
+	var ReactClass = __webpack_require__(131);
+	var ReactDOMFactories = __webpack_require__(167);
+	var ReactElement = __webpack_require__(51);
+	var ReactElementValidator = __webpack_require__(168);
+	var ReactPropTypes = __webpack_require__(116);
+	var ReactVersion = __webpack_require__(155);
+
+	var assign = __webpack_require__(48);
+	var onlyChild = __webpack_require__(170);
+
+	var createElement = ReactElement.createElement;
+	var createFactory = ReactElement.createFactory;
+	var cloneElement = ReactElement.cloneElement;
+
+	if (process.env.NODE_ENV !== 'production') {
+	  createElement = ReactElementValidator.createElement;
+	  createFactory = ReactElementValidator.createFactory;
+	  cloneElement = ReactElementValidator.cloneElement;
+	}
+
+	var React = {
+
+	  // Modern
+
+	  Children: {
+	    map: ReactChildren.map,
+	    forEach: ReactChildren.forEach,
+	    count: ReactChildren.count,
+	    toArray: ReactChildren.toArray,
+	    only: onlyChild
+	  },
+
+	  Component: ReactComponent,
+
+	  createElement: createElement,
+	  cloneElement: cloneElement,
+	  isValidElement: ReactElement.isValidElement,
+
+	  // Classic
+
+	  PropTypes: ReactPropTypes,
+	  createClass: ReactClass.createClass,
+	  createFactory: createFactory,
+	  createMixin: function (mixin) {
+	    // Currently a noop. Will be used to validate and trace mixins.
+	    return mixin;
+	  },
+
+	  // This looks DOM specific but these are actually isomorphic helpers
+	  // since they are just generating DOM strings.
+	  DOM: ReactDOMFactories,
+
+	  version: ReactVersion,
+
+	  // Hook for JSX spread, don't use this for anything else.
+	  __spread: assign
+	};
+
+	module.exports = React;
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
+
+/***/ },
+/* 167 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* WEBPACK VAR INJECTION */(function(process) {/**
+	 * Copyright 2013-2015, Facebook, Inc.
+	 * All rights reserved.
+	 *
+	 * This source code is licensed under the BSD-style license found in the
+	 * LICENSE file in the root directory of this source tree. An additional grant
+	 * of patent rights can be found in the PATENTS file in the same directory.
+	 *
+	 * @providesModule ReactDOMFactories
+	 * @typechecks static-only
+	 */
+
+	'use strict';
+
+	var ReactElement = __webpack_require__(51);
+	var ReactElementValidator = __webpack_require__(168);
+
+	var mapObject = __webpack_require__(169);
+
+	/**
+	 * Create a factory that creates HTML tag elements.
+	 *
+	 * @param {string} tag Tag name (e.g. `div`).
+	 * @private
+	 */
+	function createDOMFactory(tag) {
+	  if (process.env.NODE_ENV !== 'production') {
+	    return ReactElementValidator.createFactory(tag);
+	  }
+	  return ReactElement.createFactory(tag);
+	}
+
+	/**
+	 * Creates a mapping from supported HTML tags to `ReactDOMComponent` classes.
+	 * This is also accessible via `React.DOM`.
+	 *
+	 * @public
+	 */
+	var ReactDOMFactories = mapObject({
+	  a: 'a',
+	  abbr: 'abbr',
+	  address: 'address',
+	  area: 'area',
+	  article: 'article',
+	  aside: 'aside',
+	  audio: 'audio',
+	  b: 'b',
+	  base: 'base',
+	  bdi: 'bdi',
+	  bdo: 'bdo',
+	  big: 'big',
+	  blockquote: 'blockquote',
+	  body: 'body',
+	  br: 'br',
+	  button: 'button',
+	  canvas: 'canvas',
+	  caption: 'caption',
+	  cite: 'cite',
+	  code: 'code',
+	  col: 'col',
+	  colgroup: 'colgroup',
+	  data: 'data',
+	  datalist: 'datalist',
+	  dd: 'dd',
+	  del: 'del',
+	  details: 'details',
+	  dfn: 'dfn',
+	  dialog: 'dialog',
+	  div: 'div',
+	  dl: 'dl',
+	  dt: 'dt',
+	  em: 'em',
+	  embed: 'embed',
+	  fieldset: 'fieldset',
+	  figcaption: 'figcaption',
+	  figure: 'figure',
+	  footer: 'footer',
+	  form: 'form',
+	  h1: 'h1',
+	  h2: 'h2',
+	  h3: 'h3',
+	  h4: 'h4',
+	  h5: 'h5',
+	  h6: 'h6',
+	  head: 'head',
+	  header: 'header',
+	  hgroup: 'hgroup',
+	  hr: 'hr',
+	  html: 'html',
+	  i: 'i',
+	  iframe: 'iframe',
+	  img: 'img',
+	  input: 'input',
+	  ins: 'ins',
+	  kbd: 'kbd',
+	  keygen: 'keygen',
+	  label: 'label',
+	  legend: 'legend',
+	  li: 'li',
+	  link: 'link',
+	  main: 'main',
+	  map: 'map',
+	  mark: 'mark',
+	  menu: 'menu',
+	  menuitem: 'menuitem',
+	  meta: 'meta',
+	  meter: 'meter',
+	  nav: 'nav',
+	  noscript: 'noscript',
+	  object: 'object',
+	  ol: 'ol',
+	  optgroup: 'optgroup',
+	  option: 'option',
+	  output: 'output',
+	  p: 'p',
+	  param: 'param',
+	  picture: 'picture',
+	  pre: 'pre',
+	  progress: 'progress',
+	  q: 'q',
+	  rp: 'rp',
+	  rt: 'rt',
+	  ruby: 'ruby',
+	  s: 's',
+	  samp: 'samp',
+	  script: 'script',
+	  section: 'section',
+	  select: 'select',
+	  small: 'small',
+	  source: 'source',
+	  span: 'span',
+	  strong: 'strong',
+	  style: 'style',
+	  sub: 'sub',
+	  summary: 'summary',
+	  sup: 'sup',
+	  table: 'table',
+	  tbody: 'tbody',
+	  td: 'td',
+	  textarea: 'textarea',
+	  tfoot: 'tfoot',
+	  th: 'th',
+	  thead: 'thead',
+	  time: 'time',
+	  title: 'title',
+	  tr: 'tr',
+	  track: 'track',
+	  u: 'u',
+	  ul: 'ul',
+	  'var': 'var',
+	  video: 'video',
+	  wbr: 'wbr',
+
+	  // SVG
+	  circle: 'circle',
+	  clipPath: 'clipPath',
+	  defs: 'defs',
+	  ellipse: 'ellipse',
+	  g: 'g',
+	  image: 'image',
+	  line: 'line',
+	  linearGradient: 'linearGradient',
+	  mask: 'mask',
+	  path: 'path',
+	  pattern: 'pattern',
+	  polygon: 'polygon',
+	  polyline: 'polyline',
+	  radialGradient: 'radialGradient',
+	  rect: 'rect',
+	  stop: 'stop',
+	  svg: 'svg',
+	  text: 'text',
+	  tspan: 'tspan'
+
+	}, createDOMFactory);
+
+	module.exports = ReactDOMFactories;
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
+
+/***/ },
+/* 168 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* WEBPACK VAR INJECTION */(function(process) {/**
+	 * Copyright 2014-2015, Facebook, Inc.
+	 * All rights reserved.
+	 *
+	 * This source code is licensed under the BSD-style license found in the
+	 * LICENSE file in the root directory of this source tree. An additional grant
+	 * of patent rights can be found in the PATENTS file in the same directory.
+	 *
+	 * @providesModule ReactElementValidator
+	 */
+
+	/**
+	 * ReactElementValidator provides a wrapper around a element factory
+	 * which validates the props passed to the element. This is intended to be
+	 * used only in DEV and could be replaced by a static type checker for languages
+	 * that support it.
+	 */
+
+	'use strict';
+
+	var ReactElement = __webpack_require__(51);
+	var ReactPropTypeLocations = __webpack_require__(74);
+	var ReactPropTypeLocationNames = __webpack_require__(75);
+	var ReactCurrentOwner = __webpack_require__(14);
+
+	var canDefineProperty = __webpack_require__(52);
+	var getIteratorFn = __webpack_require__(117);
+	var invariant = __webpack_require__(22);
+	var warning = __webpack_require__(34);
+
+	function getDeclarationErrorAddendum() {
+	  if (ReactCurrentOwner.current) {
+	    var name = ReactCurrentOwner.current.getName();
+	    if (name) {
+	      return ' Check the render method of `' + name + '`.';
+	    }
+	  }
+	  return '';
+	}
+
+	/**
+	 * Warn if there's no key explicitly set on dynamic arrays of children or
+	 * object keys are not valid. This allows us to keep track of children between
+	 * updates.
+	 */
+	var ownerHasKeyUseWarning = {};
+
+	var loggedTypeFailures = {};
+
+	/**
+	 * Warn if the element doesn't have an explicit key assigned to it.
+	 * This element is in an array. The array could grow and shrink or be
+	 * reordered. All children that haven't already been validated are required to
+	 * have a "key" property assigned to it.
+	 *
+	 * @internal
+	 * @param {ReactElement} element Element that requires a key.
+	 * @param {*} parentType element's parent's type.
+	 */
+	function validateExplicitKey(element, parentType) {
+	  if (!element._store || element._store.validated || element.key != null) {
+	    return;
+	  }
+	  element._store.validated = true;
+
+	  var addenda = getAddendaForKeyUse('uniqueKey', element, parentType);
+	  if (addenda === null) {
+	    // we already showed the warning
+	    return;
+	  }
+	  process.env.NODE_ENV !== 'production' ? warning(false, 'Each child in an array or iterator should have a unique "key" prop.' + '%s%s%s', addenda.parentOrOwner || '', addenda.childOwner || '', addenda.url || '') : undefined;
+	}
+
+	/**
+	 * Shared warning and monitoring code for the key warnings.
+	 *
+	 * @internal
+	 * @param {string} messageType A key used for de-duping warnings.
+	 * @param {ReactElement} element Component that requires a key.
+	 * @param {*} parentType element's parent's type.
+	 * @returns {?object} A set of addenda to use in the warning message, or null
+	 * if the warning has already been shown before (and shouldn't be shown again).
+	 */
+	function getAddendaForKeyUse(messageType, element, parentType) {
+	  var addendum = getDeclarationErrorAddendum();
+	  if (!addendum) {
+	    var parentName = typeof parentType === 'string' ? parentType : parentType.displayName || parentType.name;
+	    if (parentName) {
+	      addendum = ' Check the top-level render call using <' + parentName + '>.';
+	    }
+	  }
+
+	  var memoizer = ownerHasKeyUseWarning[messageType] || (ownerHasKeyUseWarning[messageType] = {});
+	  if (memoizer[addendum]) {
+	    return null;
+	  }
+	  memoizer[addendum] = true;
+
+	  var addenda = {
+	    parentOrOwner: addendum,
+	    url: ' See https://fb.me/react-warning-keys for more information.',
+	    childOwner: null
+	  };
+
+	  // Usually the current owner is the offender, but if it accepts children as a
+	  // property, it may be the creator of the child that's responsible for
+	  // assigning it a key.
+	  if (element && element._owner && element._owner !== ReactCurrentOwner.current) {
+	    // Give the component that originally created this child.
+	    addenda.childOwner = ' It was passed a child from ' + element._owner.getName() + '.';
+	  }
+
+	  return addenda;
+	}
+
+	/**
+	 * Ensure that every element either is passed in a static location, in an
+	 * array with an explicit keys property defined, or in an object literal
+	 * with valid key property.
+	 *
+	 * @internal
+	 * @param {ReactNode} node Statically passed child of any type.
+	 * @param {*} parentType node's parent's type.
+	 */
+	function validateChildKeys(node, parentType) {
+	  if (typeof node !== 'object') {
+	    return;
+	  }
+	  if (Array.isArray(node)) {
+	    for (var i = 0; i < node.length; i++) {
+	      var child = node[i];
+	      if (ReactElement.isValidElement(child)) {
+	        validateExplicitKey(child, parentType);
+	      }
+	    }
+	  } else if (ReactElement.isValidElement(node)) {
+	    // This element was passed in a valid location.
+	    if (node._store) {
+	      node._store.validated = true;
+	    }
+	  } else if (node) {
+	    var iteratorFn = getIteratorFn(node);
+	    // Entry iterators provide implicit keys.
+	    if (iteratorFn) {
+	      if (iteratorFn !== node.entries) {
+	        var iterator = iteratorFn.call(node);
+	        var step;
+	        while (!(step = iterator.next()).done) {
+	          if (ReactElement.isValidElement(step.value)) {
+	            validateExplicitKey(step.value, parentType);
+	          }
+	        }
+	      }
+	    }
+	  }
+	}
+
+	/**
+	 * Assert that the props are valid
+	 *
+	 * @param {string} componentName Name of the component for error messages.
+	 * @param {object} propTypes Map of prop name to a ReactPropType
+	 * @param {object} props
+	 * @param {string} location e.g. "prop", "context", "child context"
+	 * @private
+	 */
+	function checkPropTypes(componentName, propTypes, props, location) {
+	  for (var propName in propTypes) {
+	    if (propTypes.hasOwnProperty(propName)) {
+	      var error;
+	      // Prop type validation may throw. In case they do, we don't want to
+	      // fail the render phase where it didn't fail before. So we log it.
+	      // After these have been cleaned up, we'll let them throw.
+	      try {
+	        // This is intentionally an invariant that gets caught. It's the same
+	        // behavior as without this statement except with a better message.
+	        !(typeof propTypes[propName] === 'function') ? process.env.NODE_ENV !== 'production' ? invariant(false, '%s: %s type `%s` is invalid; it must be a function, usually from ' + 'React.PropTypes.', componentName || 'React class', ReactPropTypeLocationNames[location], propName) : invariant(false) : undefined;
+	        error = propTypes[propName](props, propName, componentName, location);
+	      } catch (ex) {
+	        error = ex;
+	      }
+	      process.env.NODE_ENV !== 'production' ? warning(!error || error instanceof Error, '%s: type specification of %s `%s` is invalid; the type checker ' + 'function must return `null` or an `Error` but returned a %s. ' + 'You may have forgotten to pass an argument to the type checker ' + 'creator (arrayOf, instanceOf, objectOf, oneOf, oneOfType, and ' + 'shape all require an argument).', componentName || 'React class', ReactPropTypeLocationNames[location], propName, typeof error) : undefined;
+	      if (error instanceof Error && !(error.message in loggedTypeFailures)) {
+	        // Only monitor this failure once because there tends to be a lot of the
+	        // same error.
+	        loggedTypeFailures[error.message] = true;
+
+	        var addendum = getDeclarationErrorAddendum();
+	        process.env.NODE_ENV !== 'production' ? warning(false, 'Failed propType: %s%s', error.message, addendum) : undefined;
+	      }
+	    }
+	  }
+	}
+
+	/**
+	 * Given an element, validate that its props follow the propTypes definition,
+	 * provided by the type.
+	 *
+	 * @param {ReactElement} element
+	 */
+	function validatePropTypes(element) {
+	  var componentClass = element.type;
+	  if (typeof componentClass !== 'function') {
+	    return;
+	  }
+	  var name = componentClass.displayName || componentClass.name;
+	  if (componentClass.propTypes) {
+	    checkPropTypes(name, componentClass.propTypes, element.props, ReactPropTypeLocations.prop);
+	  }
+	  if (typeof componentClass.getDefaultProps === 'function') {
+	    process.env.NODE_ENV !== 'production' ? warning(componentClass.getDefaultProps.isReactClassApproved, 'getDefaultProps is only used on classic React.createClass ' + 'definitions. Use a static property named `defaultProps` instead.') : undefined;
+	  }
+	}
+
+	var ReactElementValidator = {
+
+	  createElement: function (type, props, children) {
+	    var validType = typeof type === 'string' || typeof type === 'function';
+	    // We warn in this case but don't throw. We expect the element creation to
+	    // succeed and there will likely be errors in render.
+	    process.env.NODE_ENV !== 'production' ? warning(validType, 'React.createElement: type should not be null, undefined, boolean, or ' + 'number. It should be a string (for DOM elements) or a ReactClass ' + '(for composite components).%s', getDeclarationErrorAddendum()) : undefined;
+
+	    var element = ReactElement.createElement.apply(this, arguments);
+
+	    // The result can be nullish if a mock or a custom function is used.
+	    // TODO: Drop this when these are no longer allowed as the type argument.
+	    if (element == null) {
+	      return element;
+	    }
+
+	    // Skip key warning if the type isn't valid since our key validation logic
+	    // doesn't expect a non-string/function type and can throw confusing errors.
+	    // We don't want exception behavior to differ between dev and prod.
+	    // (Rendering will throw with a helpful message and as soon as the type is
+	    // fixed, the key warnings will appear.)
+	    if (validType) {
+	      for (var i = 2; i < arguments.length; i++) {
+	        validateChildKeys(arguments[i], type);
+	      }
+	    }
+
+	    validatePropTypes(element);
+
+	    return element;
+	  },
+
+	  createFactory: function (type) {
+	    var validatedFactory = ReactElementValidator.createElement.bind(null, type);
+	    // Legacy hook TODO: Warn if this is accessed
+	    validatedFactory.type = type;
+
+	    if (process.env.NODE_ENV !== 'production') {
+	      if (canDefineProperty) {
+	        Object.defineProperty(validatedFactory, 'type', {
+	          enumerable: false,
+	          get: function () {
+	            process.env.NODE_ENV !== 'production' ? warning(false, 'Factory.type is deprecated. Access the class directly ' + 'before passing it to createFactory.') : undefined;
+	            Object.defineProperty(this, 'type', {
+	              value: type
+	            });
+	            return type;
+	          }
+	        });
+	      }
+	    }
+
+	    return validatedFactory;
+	  },
+
+	  cloneElement: function (element, props, children) {
+	    var newElement = ReactElement.cloneElement.apply(this, arguments);
+	    for (var i = 2; i < arguments.length; i++) {
+	      validateChildKeys(arguments[i], newElement.type);
+	    }
+	    validatePropTypes(newElement);
+	    return newElement;
+	  }
+
+	};
+
+	module.exports = ReactElementValidator;
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
+
+/***/ },
+/* 169 */
+/***/ function(module, exports) {
+
+	/**
+	 * Copyright 2013-2015, Facebook, Inc.
+	 * All rights reserved.
+	 *
+	 * This source code is licensed under the BSD-style license found in the
+	 * LICENSE file in the root directory of this source tree. An additional grant
+	 * of patent rights can be found in the PATENTS file in the same directory.
+	 *
+	 * @providesModule mapObject
+	 */
+
+	'use strict';
+
+	var hasOwnProperty = Object.prototype.hasOwnProperty;
+
+	/**
+	 * Executes the provided `callback` once for each enumerable own property in the
+	 * object and constructs a new object from the results. The `callback` is
+	 * invoked with three arguments:
+	 *
+	 *  - the property value
+	 *  - the property name
+	 *  - the object being traversed
+	 *
+	 * Properties that are added after the call to `mapObject` will not be visited
+	 * by `callback`. If the values of existing properties are changed, the value
+	 * passed to `callback` will be the value at the time `mapObject` visits them.
+	 * Properties that are deleted before being visited are not visited.
+	 *
+	 * @grep function objectMap()
+	 * @grep function objMap()
+	 *
+	 * @param {?object} object
+	 * @param {function} callback
+	 * @param {*} context
+	 * @return {?object}
+	 */
+	function mapObject(object, callback, context) {
+	  if (!object) {
+	    return null;
+	  }
+	  var result = {};
+	  for (var name in object) {
+	    if (hasOwnProperty.call(object, name)) {
+	      result[name] = callback.call(context, object[name], name, object);
+	    }
+	  }
+	  return result;
+	}
+
+	module.exports = mapObject;
+
+/***/ },
+/* 170 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* WEBPACK VAR INJECTION */(function(process) {/**
+	 * Copyright 2013-2015, Facebook, Inc.
+	 * All rights reserved.
+	 *
+	 * This source code is licensed under the BSD-style license found in the
+	 * LICENSE file in the root directory of this source tree. An additional grant
+	 * of patent rights can be found in the PATENTS file in the same directory.
+	 *
+	 * @providesModule onlyChild
+	 */
+	'use strict';
+
+	var ReactElement = __webpack_require__(51);
+
+	var invariant = __webpack_require__(22);
+
+	/**
+	 * Returns the first child in a collection of children and verifies that there
+	 * is only one child in the collection. The current implementation of this
+	 * function assumes that a single child gets passed without a wrapper, but the
+	 * purpose of this helper function is to abstract away the particular structure
+	 * of children.
+	 *
+	 * @param {?object} children Child collection structure.
+	 * @return {ReactComponent} The first and only `ReactComponent` contained in the
+	 * structure.
+	 */
+	function onlyChild(children) {
+	  !ReactElement.isValidElement(children) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'onlyChild must be passed a children with exactly one child.') : invariant(false) : undefined;
+	  return children;
+	}
+
+	module.exports = onlyChild;
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
+
+/***/ },
+/* 171 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* WEBPACK VAR INJECTION */(function(process) {/**
+	 * Copyright 2013-2015, Facebook, Inc.
+	 * All rights reserved.
+	 *
+	 * This source code is licensed under the BSD-style license found in the
+	 * LICENSE file in the root directory of this source tree. An additional grant
+	 * of patent rights can be found in the PATENTS file in the same directory.
+	 *
+	 * @providesModule deprecated
+	 */
+
+	'use strict';
+
+	var assign = __webpack_require__(48);
+	var warning = __webpack_require__(34);
+
+	/**
+	 * This will log a single deprecation notice per function and forward the call
+	 * on to the new API.
+	 *
+	 * @param {string} fnName The name of the function
+	 * @param {string} newModule The module that fn will exist in
+	 * @param {string} newPackage The module that fn will exist in
+	 * @param {*} ctx The context this forwarded call should run in
+	 * @param {function} fn The function to forward on to
+	 * @return {function} The function that will warn once and then call fn
+	 */
+	function deprecated(fnName, newModule, newPackage, ctx, fn) {
+	  var warned = false;
+	  if (process.env.NODE_ENV !== 'production') {
+	    var newFn = function () {
+	      process.env.NODE_ENV !== 'production' ? warning(warned,
+	      // Require examples in this string must be split to prevent React's
+	      // build tools from mistaking them for real requires.
+	      // Otherwise the build tools will attempt to build a '%s' module.
+	      'React.%s is deprecated. Please use %s.%s from require' + '(\'%s\') ' + 'instead.', fnName, newModule, fnName, newPackage) : undefined;
+	      warned = true;
+	      return fn.apply(ctx, arguments);
+	    };
+	    // We need to make sure all properties of the original fn are copied over.
+	    // In particular, this is needed to support PropTypes
+	    return assign(newFn, fn);
+	  }
+
+	  return fn;
+	}
+
+	module.exports = deprecated;
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
 
 /***/ }
 /******/ ]);
